@@ -65,7 +65,7 @@ K -->|Customer| L[Chuyển đến trang Home]
 
 K -->|Admin/Owner| M[Chuyển đến Dashboard]
 
-### 🔗 Sequence Diagram
+```
 
 ```mermaid
 sequenceDiagram
@@ -91,6 +91,8 @@ sequenceDiagram
         Frontend->>Frontend: Lưu token
         Frontend-->>User: Chuyển trang theo role
     end
+
+```
 
 ### 3. Yêu cầu dữ liệu (Data Requirements)
 
