@@ -67,6 +67,8 @@ K -->|Admin/Owner| M[Chuyển đến Dashboard]
 
 ```
 
+## 🔗 Sequence Diagram
+
 ```mermaid
 sequenceDiagram
     participant User
