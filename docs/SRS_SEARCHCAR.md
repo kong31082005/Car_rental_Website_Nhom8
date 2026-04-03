@@ -72,7 +72,7 @@ M -->|Có| O[Trả về danh sách xe phù hợp]
 
 O --> P[Hiển thị kết quả tìm kiếm]
 
----
+```
 
 ## 🔗 Sequence Diagram
 
@@ -107,6 +107,7 @@ sequenceDiagram
         Frontend-->>User: Hiển thị danh sách xe
     end
 
+```
 ---
 
 ## 3. 📊 Yêu cầu dữ liệu
