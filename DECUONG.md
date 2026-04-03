@@ -9,27 +9,28 @@ Hệ thống thuê xe tự lái là nền tảng cho phép:
 
 - Người dùng đăng xe cho thuê  
 - Khách hàng tìm kiếm và đặt xe  
-- Hai bên ký hợp đồng điện tử  
+- Hai bên thực hiện hợp đồng điện tử  
 
 Ngoài các chức năng cơ bản, hệ thống còn tích hợp:
 
 - Yêu thích xe  
-- Nhắn tin  
+- Nhắn tin thời gian thực  
 - Thông báo  
-- Điểm thưởng và voucher  
-- Đăng bài cộng đồng  
+- Điểm thưởng & voucher  
+- Hệ thống bài viết cộng đồng  
 
 ---
 
 ## 2. 🎯 Mục tiêu
 
-- Xây dựng hệ thống web hoàn chỉnh  
-- Mô phỏng nghiệp vụ thực tế  
+- Xây dựng hệ thống web hoàn chỉnh theo mô hình thực tế  
 - Áp dụng kiến trúc hiện đại (RESTful API)  
-- Tích hợp nhiều module nâng cao:
+- Phân quyền rõ ràng theo vai trò  
+- Tích hợp các module nâng cao:
   - Messaging  
   - Notification  
   - Reward system  
+  - Admin management  
 
 ---
 
@@ -44,25 +45,39 @@ Ngoài các chức năng cơ bản, hệ thống còn tích hợp:
 
 ## 4. 👥 Vai trò người dùng
 
-### 🔹 Customer
+### 🔹 Admin
+
+- Quản lý người dùng (User Management)  
+- Quản lý xe (Car Management)  
+- Quản lý hợp đồng (Contract Management)  
+- Quản lý bài viết / tin tức  
+- Quản lý voucher / khuyến mãi  
+- Giám sát hệ thống  
+
+---
+
+### 🔹 Customer (Người thuê xe)
 
 - Tìm kiếm xe  
-- Thuê xe  
+- Đặt thuê xe  
+- Xem hợp đồng  
 - Yêu thích xe  
 - Nhắn tin với chủ xe  
 - Nhận thông báo  
-- Tích điểm & dùng voucher  
-- Quản lý tài khoản cá nhân  
-- Đăng bài, xem tin tức  
+- Tích điểm & sử dụng voucher  
+- Quản lý tài khoản  
+- Đăng bài, tương tác cộng đồng  
 
-### 🔹 Owner
+---
 
-- Quản lý xe  
-- Duyệt đơn thuê  
-- Nhắn tin với khách  
+### 🔹 Owner (Chủ xe)
+
+- Đăng và quản lý xe  
+- Duyệt / từ chối đơn thuê  
 - Quản lý hợp đồng  
-- Quản lý tài khoản cá nhân  
-- Đăng bài, xem tin tức  
+- Nhắn tin với khách thuê  
+- Quản lý tài khoản  
+- Đăng bài, tương tác  
 
 ---
 
@@ -73,40 +88,29 @@ Ngoài các chức năng cơ bản, hệ thống còn tích hợp:
 - Xem danh sách xe  
 - Xem chi tiết xe  
 - Đặt thuê xe  
+- Theo dõi trạng thái đơn  
 - Xem hợp đồng  
-- Theo dõi trạng thái  
 
 ---
 
 ### 5.2 ❤️ Xe yêu thích (Favorite Cars)
 
-Người dùng có thể:
+- Thêm / xóa xe yêu thích  
+- Lưu trữ: `UserId + CarId (unique)`  
 
-- Thêm xe vào danh sách yêu thích  
-- Xóa khỏi danh sách  
-
-Dữ liệu lưu:
-
-- `UserId + CarId (unique)`
-
-👉 Giúp:
-
-- Tăng trải nghiệm người dùng  
-- Gợi ý xe sau này  
+👉 Giúp cá nhân hóa trải nghiệm người dùng  
 
 ---
 
 ### 5.3 💬 Nhắn tin (Messaging System)
 
-Chat giữa:
-
-- Khách thuê ↔ Chủ xe  
+- Chat giữa Customer ↔ Owner  
 
 Chức năng:
 
 - Tạo cuộc hội thoại  
 - Gửi / nhận tin nhắn  
-- Lưu lịch sử chat  
+- Lưu lịch sử  
 
 Cấu trúc:
 
@@ -118,13 +122,13 @@ Cấu trúc:
 
 ### 5.4 🔔 Thông báo (Notification System)
 
-Hệ thống gửi thông báo khi:
+Gửi thông báo khi:
 
 - Có đơn thuê mới  
 - Đơn được duyệt / từ chối  
 - Có tin nhắn mới  
 
-Loại thông báo:
+Loại:
 
 - Booking  
 - Message  
@@ -134,61 +138,64 @@ Loại thông báo:
 
 ### 5.5 📄 Hợp đồng điện tử
 
-- Sinh tự động khi duyệt đơn  
+- Tự động tạo khi đơn được duyệt  
 
 Hiển thị:
 
-- Text preview  
-- PDF  
+- Nội dung hợp đồng  
+- Xuất PDF  
 
 Bao gồm:
 
 - Thông tin xe  
 - Thông tin thuê  
 - Chi phí  
-- Chữ ký điện tử 2 bên  
+- Xác nhận điện tử  
 
 ---
 
 ### 5.6 👤 Quản lý tài khoản
 
-- Xem / sửa thông tin cá nhân  
+- Cập nhật thông tin  
 - Đổi mật khẩu  
-- Xem lịch sử thuê xe  
+- Xem lịch sử thuê  
 - Xem điểm thưởng  
 
 ---
 
-### 5.7 📝 Đăng bài (Community / Post)
-
-Người dùng có thể:
+### 5.7 📝 Bài viết & cộng đồng
 
 - Đăng bài  
 - Like  
 - Comment  
 
-Mục đích:
-
-- Tăng tương tác  
-- Xây dựng cộng đồng  
+👉 Tăng tương tác người dùng  
 
 ---
 
 ### 5.8 🎁 Điểm thưởng & Voucher
 
-Cơ chế:
-
-- Người dùng nhận điểm khi:
-  - Hoàn thành chuyến thuê  
-
-Điểm có thể:
-
-- Quy đổi thành voucher  
+- Nhận điểm sau mỗi lần thuê thành công  
+- Đổi điểm lấy voucher  
 
 Ứng dụng:
 
-- Giảm giá khi thuê xe  
-- Tăng giữ chân người dùng  
+- Giảm giá  
+- Tăng giữ chân khách hàng  
+
+---
+
+### 5.9 🛠️ Quản trị hệ thống (Admin Panel)
+
+Admin có thể:
+
+- Quản lý người dùng  
+- Quản lý xe trong hệ thống  
+- Quản lý hợp đồng thuê  
+- Quản lý bài viết / tin tức  
+- Quản lý voucher khuyến mãi  
+
+👉 Đảm bảo hệ thống vận hành ổn định và minh bạch  
 
 ---
 
@@ -207,6 +214,7 @@ Các bảng chính:
 - Post  
 - PostLike  
 - PostComment  
+- Voucher  
 
 ---
 
@@ -224,11 +232,11 @@ Các bảng chính:
 
 ## 8. 🔐 Xác nhận điện tử
 
-- Khách thuê:
-  - Tick đồng ý hợp đồng  
+- Customer:
+  - Đồng ý điều khoản hợp đồng  
 
-- Chủ xe:
-  - Duyệt đơn = ký hợp đồng  
+- Owner:
+  - Duyệt đơn = xác nhận hợp đồng  
 
 ---
 
@@ -245,12 +253,25 @@ Các bảng chính:
 - Notifications  
 - Profile  
 
+---
+
 ### 🔹 Owner
 
 - My Cars  
 - Booking Management  
 - Contract Management  
 - Messages  
+
+---
+
+### 🔹 Admin
+
+- Dashboard  
+- User Management  
+- Car Management  
+- Contract Management  
+- Post Management  
+- Voucher Management  
 
 ---
 
@@ -270,12 +291,13 @@ Các bảng chính:
 
 ## 11. 🚀 Điểm nổi bật
 
-- Full flow thuê xe thực tế  
-- Hợp đồng điện tử + chữ ký  
-- Hệ thống chat nội bộ  
+- Phân quyền rõ ràng (Admin - Owner - Customer)  
+- Quy trình thuê xe thực tế  
+- Hợp đồng điện tử  
+- Chat nội bộ realtime  
 - Notification system  
-- Reward system (voucher)  
-- Social features (post, like, comment)  
+- Reward & voucher system  
+- Social features  
 
 ---
 
@@ -283,14 +305,14 @@ Các bảng chính:
 
 - Thanh toán online  
 - AI gợi ý xe  
-- Bản đồ (map tracking)  
-- Ký số (digital signature thật)  
+- Tích hợp bản đồ  
+- Ký số nâng cao  
 - Push notification  
 
 ---
 
 ## 13. 📌 Kết luận
 
-Hệ thống không chỉ giải quyết bài toán thuê xe
-mà còn mở rộng thành một nền tảng dịch vụ hoàn chỉnh
-kết hợp thương mại, giao tiếp và trải nghiệm người dùng.
+Hệ thống không chỉ giải quyết bài toán thuê xe  
+mà còn mở rộng thành một nền tảng dịch vụ đa chức năng  
+kết hợp giữa thương mại, giao tiếp và quản trị hệ thống.
