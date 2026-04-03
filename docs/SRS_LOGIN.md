@@ -7,29 +7,35 @@
 
 ---
 
-### 1. Mô tả tổng quan (Description)
-Chức năng đăng nhập cho phép người dùng truy cập vào hệ thống thuê xe tự lái bằng tài khoản đã đăng ký.  
+## 1. 📌 Mô tả tổng quan (Description)
 
-Hệ thống có 2 loại người dùng chính:
+Chức năng đăng nhập cho phép người dùng truy cập vào hệ thống thuê xe tự lái bằng tài khoản đã đăng ký.
 
-- **Customer (Khách thuê)**  
-- **Admin/Owner (Quản trị viên / Chủ xe)**  
+Hệ thống hỗ trợ 3 vai trò người dùng:
 
-Sau khi đăng nhập thành công, hệ thống xác thực thông tin và cấp **JWT Token**.  
-Người dùng sẽ được điều hướng đến giao diện tương ứng với vai trò của mình.
+- **Customer (Người thuê xe)**
+- **Owner (Chủ xe)**
+- **Admin (Quản trị viên)**
+
+Sau khi đăng nhập thành công, hệ thống sẽ:
+
+- Xác thực thông tin người dùng
+- Cấp **Access Token (JWT)**
+- Điều hướng người dùng đến giao diện phù hợp với vai trò
 
 ---
 
-### 2. Luồng nghiệp vụ (User Workflow)
+## 2. 🔄 Luồng nghiệp vụ (User Workflow)
 
 | Bước | Hành động người dùng | Phản hồi hệ thống |
 | :--- | :--- | :--- |
-| 1 | Truy cập trang `/login` | Hiển thị form đăng nhập (Email, Password) |
-| 2 | Nhập thông tin và nhấn "Đăng nhập" | Kiểm tra dữ liệu đầu vào |
-| 3 | Gửi request đến API đăng nhập | Backend kiểm tra Email và Password |
-| 4 | Thông tin hợp lệ | Tạo JWT Token và trả về thông tin người dùng |
-| 5 | Đăng nhập thành công | Frontend lưu token và điều hướng |
-| 6 | Đăng nhập thất bại | Hiển thị thông báo lỗi |
+| 1 | Truy cập trang `/login` | Hiển thị form đăng nhập |
+| 2 | Nhập Email & Password | Kiểm tra dữ liệu đầu vào |
+| 3 | Nhấn "Đăng nhập" | Gửi request đến API |
+| 4 | Backend xử lý | Kiểm tra thông tin trong database |
+| 5 | Thông tin hợp lệ | Tạo JWT Token và trả về thông tin người dùng |
+| 6 | Đăng nhập thành công | Frontend lưu token và điều hướng |
+| 7 | Đăng nhập thất bại | Hiển thị thông báo lỗi |
 
 ---
 
@@ -49,7 +55,7 @@ C -->|Hợp lệ| E[Gửi request đến API]
 
 E --> F{Kiểm tra trong DB}
 
-F -->|Sai email hoặc password| G[Thông báo đăng nhập thất bại]
+F -->|Sai thông tin| G[Thông báo đăng nhập thất bại]
 G --> B
 
 F -->|Tài khoản bị khóa| H[Thông báo tài khoản bị vô hiệu hóa]
@@ -61,9 +67,9 @@ I --> J[Lưu token ở client]
 
 J --> K{Phân quyền}
 
-K -->|Customer| L[Chuyển đến trang Home]
-
-K -->|Admin/Owner| M[Chuyển đến Dashboard]
+K -->|Customer| L[Trang Home]
+K -->|Owner| M[Owner Dashboard]
+K -->|Admin| N[Admin Dashboard]
 
 ```
 
@@ -83,39 +89,43 @@ sequenceDiagram
     Database-->>Backend: Trả về user
 
     alt Sai thông tin
-        Backend-->>Frontend: Error (401)
+        Backend-->>Frontend: 401 Unauthorized
         Frontend-->>User: Hiển thị lỗi
     else Tài khoản bị khóa
-        Backend-->>Frontend: Error (Inactive)
+        Backend-->>Frontend: 403 Forbidden
         Frontend-->>User: Thông báo bị khóa
     else Thành công
-        Backend-->>Frontend: JWT Token + User Info
+        Backend-->>Frontend: 200 OK (Token + User Info)
         Frontend->>Frontend: Lưu token
-        Frontend-->>User: Chuyển trang theo role
+        Frontend-->>User: Điều hướng theo role
     end
 
 ```
 
-### 3. Yêu cầu dữ liệu (Data Requirements)
+## 3. 📊 Yêu cầu dữ liệu (Data Requirements)
 
-#### 3.1. Dữ liệu đầu vào (Input Fields)
-- **Email:** `string`, bắt buộc, đúng định dạng email  
-- **Password:** `string`, bắt buộc, tối thiểu 6–8 ký tự  
+### 3.1. Dữ liệu đầu vào (Input Fields)
 
-#### 3.2. Dữ liệu xử lý
+- **Email:** `string`, bắt buộc, đúng định dạng email
+- **Password:** `string`, bắt buộc, tối thiểu 8 ký tự
+
+### 3.2. Dữ liệu xử lý
+
 - Tìm user theo `Email` trong bảng `AppUsers`
 - So sánh `Password` với `PasswordHash`
 - Kiểm tra trạng thái tài khoản `IsActive`
 - Xác định vai trò `Role`
 
-#### 3.3. Dữ liệu đầu ra
-- `accessToken` (JWT)
+### 3.3. Dữ liệu đầu ra
+
+- `accessToken`
 - `userId`
 - `fullName`
 - `email`
 - `role`
 
-#### 3.4. Dữ liệu lưu trữ (Database - Bảng `AppUsers`)
+### 3.4. Dữ liệu lưu trữ (Database - Bảng `AppUsers`)
+
 - `Id`
 - `FullName`
 - `Email`
@@ -166,22 +176,23 @@ sequenceDiagram
 
 ---
 
-### 6. Giao diện (UI/UX)
+## 7. 🎨 Giao diện (UI/UX)
 
 - Form đăng nhập gồm:
-  - Email  
-  - Password  
-  - Nút "Đăng nhập"  
+  - Email
+  - Password
+  - Nút "Đăng nhập"
 
-- Password được ẩn ký tự khi nhập  
-- Hỗ trợ responsive (Desktop & Mobile)  
-- Nút login có trạng thái loading khi gửi request  
-- Hiển thị lỗi rõ ràng khi đăng nhập thất bại  
+- Password được ẩn ký tự khi nhập
+- Hỗ trợ responsive (Desktop & Mobile)
+- Nút đăng nhập có trạng thái loading khi gửi request
+- Hiển thị lỗi rõ ràng khi đăng nhập thất bại
 
 Sau khi đăng nhập thành công:
 
-- **Customer → Trang thuê xe (Home)**  
-- **Admin/Owner → Trang quản lý (Dashboard / Quản lý xe)**  
+- **Customer → Trang Home**
+- **Owner → Owner Dashboard / My Cars**
+- **Admin → Admin Dashboard**
 
 ---
 
