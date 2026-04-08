@@ -50,6 +50,11 @@ function HomeCustomer() {
           color: #1f2937;
         }
 
+        .page-container {
+          width: min(1400px, calc(100% - 120px));
+          margin: 0 auto;
+        }
+
         .home-page {
           min-height: 100vh;
           background: #ffffff;
@@ -127,36 +132,12 @@ function HomeCustomer() {
           font-weight: 800;
         }
 
-        .slider-dots {
-          margin-top: 28px;
-          display: flex;
-          gap: 10px;
-          justify-content: center;
-          align-items: center;
-        }
-
-        .slider-dot {
-          width: 12px;
-          height: 12px;
-          border-radius: 50%;
-          border: none;
-          cursor: pointer;
-          background: rgba(255, 255, 255, 0.45);
-          transition: all 0.2s ease;
-        }
-
-        .slider-dot.active {
-          width: 30px;
-          border-radius: 999px;
-          background: #ffffff;
-        }
-
         .search-panel {
           position: absolute;
           left: 50%;
           bottom: -58px;
           transform: translateX(-50%);
-          width: min(1100px, calc(100% - 40px));
+          width: min(1180px, calc(100% - 40px));
           z-index: 20;
         }
 
@@ -258,6 +239,10 @@ function HomeCustomer() {
         }
 
         @media (max-width: 991.98px) {
+          .page-container {
+            width: calc(100% - 28px);
+          }
+
           .hero-banner {
             height: 560px;
           }
@@ -339,7 +324,7 @@ function HomeCustomer() {
         <CustomerHeader />
 
         <section className="hero-section">
-          <div className="container">
+          <div className="page-container">
             <div className="hero-wrapper">
               <div
                 className="hero-banner"
@@ -361,19 +346,6 @@ function HomeCustomer() {
                     <span className="highlight">hơn 10.000</span> xe tự lái đổi
                     mới khắp Việt Nam
                   </p>
-
-                  <div className="slider-dots">
-                    {banners.map((_, index) => (
-                      <button
-                        key={index}
-                        className={`slider-dot ${
-                          currentSlide === index ? "active" : ""
-                        }`}
-                        onClick={() => setCurrentSlide(index)}
-                        aria-label={`Go to slide ${index + 1}`}
-                      ></button>
-                    ))}
-                  </div>
                 </div>
               </div>
 

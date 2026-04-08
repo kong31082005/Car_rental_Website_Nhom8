@@ -5,6 +5,11 @@ function CustomerHeader() {
   return (
     <>
       <style>{`
+        .page-container {
+          width: min(1400px, calc(100% - 120px));
+          margin: 0 auto;
+        }
+
         .top-navbar {
           height: 78px;
           background: #ffffff;
@@ -70,11 +75,15 @@ function CustomerHeader() {
             height: auto;
             padding: 12px 0;
           }
+
+          .page-container {
+            width: calc(100% - 28px);
+          }
         }
       `}</style>
 
       <header className="top-navbar d-flex align-items-center">
-        <div className="container">
+        <div className="page-container">
           <div className="d-flex align-items-center justify-content-between flex-wrap gap-3">
             <div className="d-flex align-items-center">
               <img src={logoImage} alt="logo" className="brand-logo" />

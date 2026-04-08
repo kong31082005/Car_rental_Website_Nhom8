@@ -2,6 +2,11 @@ function Footer() {
   return (
     <>
       <style>{`
+        .page-container {
+          width: min(1400px, calc(100% - 120px));
+          margin: 0 auto;
+        }
+
         .site-footer {
           background: #ffffff;
           border-top: 1px solid #e5e7eb;
@@ -142,6 +147,10 @@ function Footer() {
         }
 
         @media (max-width: 991.98px) {
+          .page-container {
+            width: calc(100% - 28px);
+          }
+
           .footer-top {
             padding: 44px 0 20px;
           }
@@ -158,7 +167,7 @@ function Footer() {
 
       <footer className="site-footer">
         <div className="footer-top">
-          <div className="container">
+          <div className="page-container">
             <div className="row g-4">
               <div className="col-12 col-lg-4">
                 <div className="footer-logo">
@@ -171,7 +180,7 @@ function Footer() {
                 </div>
 
                 <div className="footer-contact-item">
-                  <strong>nguyenvancong@gmail.com</strong>
+                  <strong>nguyenvancong@kongcars.vn</strong>
                   <span>Gửi mail cho Kongcars</span>
                 </div>
 
@@ -207,7 +216,6 @@ function Footer() {
 
               <div className="col-6 col-lg-2">
                 <h4 className="footer-title">Đối Tác</h4>
-                <a href="#" className="footer-link">Đăng ký chủ xe Kongcars</a>
                 <a href="#" className="footer-link">Đăng ký GPS MITRACK 4G</a>
                 <a href="#" className="footer-link">Đăng ký cho thuê xe dài hạn</a>
               </div>
@@ -218,7 +226,7 @@ function Footer() {
         <div className="footer-divider"></div>
 
         <div className="footer-middle">
-          <div className="container">
+          <div className="page-container">
             <div className="row g-4">
               <div className="col-12 col-lg-4">
                 <div className="footer-text">© Công ty Cổ phần Kongcars Asia</div>
@@ -241,7 +249,7 @@ function Footer() {
         <div className="footer-divider"></div>
 
         <div className="footer-bottom">
-          <div className="container">
+          <div className="page-container">
             <div className="row g-4 align-items-start">
               <div className="col-12 col-lg-4">
                 <div className="footer-text mb-4">

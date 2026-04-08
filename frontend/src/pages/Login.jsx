@@ -1,9 +1,13 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { Eye, EyeOff } from "lucide-react";
 import bgImage from "../assets/login-bg.jpg";
 import sideImage from "../assets/login-bg.jpg";
+import { loginApi } from "../services/authService";
 
 function Login() {
+  const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -12,6 +16,7 @@ function Login() {
 
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -39,14 +44,14 @@ function Login() {
 
     if (!formData.password.trim()) {
       newErrors.password = "Vui lòng nhập mật khẩu";
-    } else if (formData.password.length < 8) {
-      newErrors.password = "Mật khẩu tối thiểu 8 ký tự";
+    } else if (formData.password.length < 6) {
+      newErrors.password = "Mật khẩu tối thiểu 6 ký tự";
     }
 
     return newErrors;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     const validationErrors = validateForm();
@@ -55,15 +60,39 @@ function Login() {
       return;
     }
 
-    setLoading(true);
+    try {
+      setLoading(true);
+      setErrors({});
 
-    setTimeout(() => {
-      setLoading(false);
-      setErrors({
-        general: "UI đã sẵn sàng. Bước tiếp theo là nối API đăng nhập.",
+      const data = await loginApi({
+        email: formData.email.trim(),
+        password: formData.password,
       });
-      console.log("Login form:", formData);
-    }, 1000);
+
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+
+      if (formData.remember) {
+        localStorage.setItem("rememberEmail", formData.email.trim());
+      } else {
+        localStorage.removeItem("rememberEmail");
+      }
+
+      if (data.user.role === "Owner" || data.user.role === "Admin") {
+        navigate("/admin");
+      } else {
+        navigate("/home");
+      }
+    } catch (error) {
+      const message =
+        error?.response?.data?.message || "Đăng nhập thất bại. Vui lòng thử lại.";
+
+      setErrors({
+        general: message,
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -90,7 +119,7 @@ function Login() {
           background: rgba(10, 14, 30, 0.45);
         }
 
-        .login-card {
+        .auth-card {
           display: grid;
           grid-template-columns: 1.05fr 1fr;
           min-height: 620px;
@@ -100,13 +129,13 @@ function Login() {
           backdrop-filter: blur(6px);
         }
 
-        .login-left {
+        .auth-left {
           background-size: cover;
           background-position: center;
           position: relative;
         }
 
-        .login-left-overlay {
+        .auth-left-overlay {
           height: 100%;
           padding: 40px 34px;
           color: #ffffff;
@@ -127,14 +156,14 @@ function Login() {
           margin-bottom: 32px;
         }
 
-        .login-left h1 {
-          font-size: 2.3rem;
+        .auth-left h1 {
+          font-size: 2.2rem;
           font-weight: 700;
           line-height: 1.2;
           margin-bottom: 18px;
         }
 
-        .login-left p {
+        .auth-left p {
           font-size: 1rem;
           line-height: 1.8;
           max-width: 470px;
@@ -147,7 +176,7 @@ function Login() {
           color: rgba(255, 255, 255, 0.88);
         }
 
-        .login-right {
+        .auth-right {
           display: flex;
           align-items: center;
           justify-content: center;
@@ -156,20 +185,20 @@ function Login() {
             linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(250, 250, 253, 0.94));
         }
 
-        .login-form-wrapper {
+        .auth-form-wrapper {
           width: 100%;
           max-width: 430px;
           padding: 40px 34px;
         }
 
-        .login-title {
+        .auth-title {
           font-size: 2rem;
           font-weight: 800;
           color: #1c2440;
           margin-bottom: 8px;
         }
 
-        .login-subtitle {
+        .auth-subtitle {
           color: #6b7280;
           margin-bottom: 28px;
         }
@@ -189,7 +218,27 @@ function Login() {
           background-color: #ffffff;
         }
 
-        .login-btn {
+        .password-input-container {
+          position: relative;
+        }
+
+        .password-toggle {
+          position: absolute;
+          right: 14px;
+          top: 50%;
+          transform: translateY(-50%);
+          color: #6b7280;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          z-index: 3;
+        }
+
+        .password-field {
+          padding-right: 46px;
+        }
+
+        .auth-btn {
           height: 50px;
           border: none;
           border-radius: 14px;
@@ -199,7 +248,7 @@ function Login() {
           transition: all 0.25s ease;
         }
 
-        .login-btn:hover {
+        .auth-btn:hover {
           color: #ffffff;
           transform: translateY(-1px);
           box-shadow: 0 10px 22px rgba(76, 61, 214, 0.28);
@@ -225,29 +274,29 @@ function Login() {
         }
 
         @media (max-width: 991.98px) {
-          .login-card {
+          .auth-card {
             grid-template-columns: 1fr;
           }
 
-          .login-left {
+          .auth-left {
             min-height: 280px;
           }
 
-          .login-left h1 {
+          .auth-left h1 {
             font-size: 1.9rem;
           }
         }
 
         @media (max-width: 575.98px) {
-          .login-form-wrapper {
+          .auth-form-wrapper {
             padding: 30px 20px;
           }
 
-          .login-left-overlay {
+          .auth-left-overlay {
             padding: 28px 22px;
           }
 
-          .login-title {
+          .auth-title {
             font-size: 1.7rem;
           }
 
@@ -265,12 +314,12 @@ function Login() {
           <div className="container">
             <div className="row justify-content-center align-items-center min-vh-100 py-4">
               <div className="col-12 col-xl-9">
-                <div className="login-card shadow-lg">
+                <div className="auth-card shadow-lg">
                   <div
-                    className="login-left"
+                    className="auth-left"
                     style={{ backgroundImage: `url(${sideImage})` }}
                   >
-                    <div className="login-left-overlay">
+                    <div className="auth-left-overlay">
                       <div>
                         <div className="brand">KongCars</div>
                         <h1>Chào mừng bạn quay lại</h1>
@@ -282,30 +331,27 @@ function Login() {
                       </div>
 
                       <div className="left-footer">
-                        Hệ thống thuê xe tự lái dành cho Customer, Owner và
-                        Admin
+                        Hệ thống thuê xe tự lái dành cho Customer và Admin
                       </div>
                     </div>
                   </div>
 
-                  <div className="login-right">
-                    <div className="login-form-wrapper">
-                      <h2 className="login-title">Đăng nhập</h2>
-                      <p className="login-subtitle">
+                  <div className="auth-right">
+                    <div className="auth-form-wrapper">
+                      <h2 className="auth-title">Đăng nhập</h2>
+                      <p className="auth-subtitle">
                         Nhập thông tin tài khoản để truy cập vào hệ thống.
                       </p>
 
                       {errors.general && (
-                        <div className="alert alert-warning py-2" role="alert">
+                        <div className="alert alert-danger py-2" role="alert">
                           {errors.general}
                         </div>
                       )}
 
                       <form onSubmit={handleSubmit}>
                         <div className="mb-3">
-                          <label className="form-label fw-semibold">
-                            Email
-                          </label>
+                          <label className="form-label fw-semibold">Email</label>
                           <input
                             type="email"
                             name="email"
@@ -327,21 +373,33 @@ function Login() {
                           <label className="form-label fw-semibold">
                             Mật khẩu
                           </label>
-                          <input
-                            type="password"
-                            name="password"
-                            className={`form-control custom-input ${
-                              errors.password ? "is-invalid" : ""
-                            }`}
-                            placeholder="Nhập mật khẩu"
-                            value={formData.password}
-                            onChange={handleChange}
-                          />
-                          {errors.password && (
-                            <div className="invalid-feedback">
-                              {errors.password}
-                            </div>
-                          )}
+                          <div className="password-input-container">
+                            <input
+                              type={showPassword ? "text" : "password"}
+                              name="password"
+                              className={`form-control custom-input password-field ${
+                                errors.password ? "is-invalid" : ""
+                              }`}
+                              placeholder="Nhập mật khẩu"
+                              value={formData.password}
+                              onChange={handleChange}
+                            />
+                            <span
+                              className="password-toggle"
+                              onClick={() => setShowPassword(!showPassword)}
+                            >
+                              {showPassword ? (
+                                <EyeOff size={18} />
+                              ) : (
+                                <Eye size={18} />
+                              )}
+                            </span>
+                            {errors.password && (
+                              <div className="invalid-feedback d-block">
+                                {errors.password}
+                              </div>
+                            )}
+                          </div>
                         </div>
 
                         <div className="d-flex justify-content-between align-items-center mb-4 small">
@@ -368,7 +426,7 @@ function Login() {
                         <div className="d-grid">
                           <button
                             type="submit"
-                            className="btn login-btn"
+                            className="btn auth-btn"
                             disabled={loading}
                           >
                             {loading ? "Đang đăng nhập..." : "Đăng nhập"}
