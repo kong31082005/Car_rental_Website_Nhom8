@@ -24,35 +24,36 @@ Ngoài các chức năng cơ bản, hệ thống còn tích hợp:
 ## 2. 🎯 Mục tiêu
 
 - Xây dựng hệ thống web hoàn chỉnh theo mô hình thực tế  
-- Áp dụng kiến trúc hiện đại (RESTful API)  
+- Áp dụng kiến trúc RESTful API  
 - Phân quyền rõ ràng theo vai trò  
 - Tích hợp các module nâng cao:
-  - Messaging  
-  - Notification  
-  - Reward system  
-  - Admin management  
+
+| Module | Mô tả |
+|-------|------|
+| Messaging | Nhắn tin giữa người dùng |
+| Notification | Thông báo hệ thống |
+| Reward System | Điểm thưởng & voucher |
+| Admin Management | Quản lý hệ thống |
 
 ---
 
 ## 3. 🧱 Kiến trúc hệ thống
 [ Web Client ] <----> [ ASP.NET Core API ] <----> [ SQL Server ]
 
-- Frontend: ReactJS  
-- Backend: ASP.NET Core  
-- Database: SQL Server  
+| Thành phần | Công nghệ |
+|----------|----------|
+| Frontend | ReactJS |
+| Backend | ASP.NET Core |
+| Database | SQL Server |
 
 ---
 
 ## 4. 👥 Vai trò người dùng
 
-### 🔹 Admin
-
-- Quản lý người dùng (User Management)  
-- Quản lý xe (Car Management)  
-- Quản lý hợp đồng (Contract Management)  
-- Quản lý bài viết / tin tức  
-- Quản lý voucher / khuyến mãi  
-- Giám sát hệ thống  
+| Vai trò | Mô tả |
+|--------|------|
+| Customer | Người thuê xe |
+| Admin (Owner) | Chủ xe + quản trị hệ thống |
 
 ---
 
@@ -70,14 +71,16 @@ Ngoài các chức năng cơ bản, hệ thống còn tích hợp:
 
 ---
 
-### 🔹 Owner (Chủ xe)
+### 🔹 Admin (Owner)
 
-- Đăng và quản lý xe  
+- Quản lý xe (thêm / sửa / xóa)  
 - Duyệt / từ chối đơn thuê  
 - Quản lý hợp đồng  
 - Nhắn tin với khách thuê  
-- Quản lý tài khoản  
-- Đăng bài, tương tác  
+- Quản lý người dùng  
+- Quản lý bài viết / tin tức  
+- Quản lý voucher / khuyến mãi  
+- Giám sát hệ thống  
 
 ---
 
@@ -85,18 +88,24 @@ Ngoài các chức năng cơ bản, hệ thống còn tích hợp:
 
 ### 5.1 🚗 Thuê xe
 
-- Xem danh sách xe  
-- Xem chi tiết xe  
-- Đặt thuê xe  
-- Theo dõi trạng thái đơn  
-- Xem hợp đồng  
+| Chức năng | Mô tả |
+|----------|------|
+| Xem danh sách xe | Hiển thị danh sách xe |
+| Xem chi tiết xe | Thông tin chi tiết |
+| Đặt thuê xe | Tạo booking |
+| Theo dõi trạng thái | Pending → Completed |
+| Xem hợp đồng | Preview + PDF |
 
 ---
 
 ### 5.2 ❤️ Xe yêu thích (Favorite Cars)
 
 - Thêm / xóa xe yêu thích  
-- Lưu trữ: `UserId + CarId (unique)`  
+
+| Thuộc tính | Giá trị |
+|-----------|--------|
+| Lưu trữ | UserId + CarId |
+| Ràng buộc | Unique |
 
 👉 Giúp cá nhân hóa trải nghiệm người dùng  
 
@@ -104,46 +113,43 @@ Ngoài các chức năng cơ bản, hệ thống còn tích hợp:
 
 ### 5.3 💬 Nhắn tin (Messaging System)
 
-- Chat giữa Customer ↔ Owner  
+| Thành phần | Mô tả |
+|-----------|------|
+| Conversation | Cuộc hội thoại |
+| Participant | Người tham gia |
+| Message | Tin nhắn |
 
 Chức năng:
 
-- Tạo cuộc hội thoại  
+- Chat giữa Customer ↔ Admin  
 - Gửi / nhận tin nhắn  
 - Lưu lịch sử  
-
-Cấu trúc:
-
-- Conversation  
-- ConversationParticipant  
-- Message  
 
 ---
 
 ### 5.4 🔔 Thông báo (Notification System)
 
-Gửi thông báo khi:
+| Sự kiện | Mô tả |
+|--------|------|
+| Booking mới | Có đơn thuê |
+| Duyệt / từ chối | Cập nhật trạng thái |
+| Tin nhắn | Có message mới |
 
-- Có đơn thuê mới  
-- Đơn được duyệt / từ chối  
-- Có tin nhắn mới  
-
-Loại:
-
-- Booking  
-- Message  
-- System  
+| Loại | Giá trị |
+|-----|--------|
+| Booking | Đơn thuê |
+| Message | Tin nhắn |
+| System | Hệ thống |
 
 ---
 
 ### 5.5 📄 Hợp đồng điện tử
 
-- Tự động tạo khi đơn được duyệt  
-
-Hiển thị:
-
-- Nội dung hợp đồng  
-- Xuất PDF  
+| Chức năng | Mô tả |
+|----------|------|
+| Tạo hợp đồng | Khi duyệt đơn |
+| Hiển thị | Text + PDF |
+| Nội dung | Xe, thời gian, chi phí |
 
 Bao gồm:
 
@@ -165,9 +171,11 @@ Bao gồm:
 
 ### 5.7 📝 Bài viết & cộng đồng
 
-- Đăng bài  
-- Like  
-- Comment  
+| Chức năng | Mô tả |
+|----------|------|
+| Đăng bài | Tạo bài viết |
+| Like | Thích |
+| Comment | Bình luận |
 
 👉 Tăng tương tác người dùng  
 
@@ -175,68 +183,62 @@ Bao gồm:
 
 ### 5.8 🎁 Điểm thưởng & Voucher
 
-- Nhận điểm sau mỗi lần thuê thành công  
-- Đổi điểm lấy voucher  
-
-Ứng dụng:
-
-- Giảm giá  
-- Tăng giữ chân khách hàng  
+| Chức năng | Mô tả |
+|----------|------|
+| Tích điểm | Sau khi hoàn thành chuyến |
+| Đổi voucher | Giảm giá |
 
 ---
 
-### 5.9 🛠️ Quản trị hệ thống (Admin Panel)
+### 5.9 🛠️ Quản trị hệ thống
 
 Admin có thể:
 
 - Quản lý người dùng  
-- Quản lý xe trong hệ thống  
-- Quản lý hợp đồng thuê  
-- Quản lý bài viết / tin tức  
-- Quản lý voucher khuyến mãi  
-
-👉 Đảm bảo hệ thống vận hành ổn định và minh bạch  
+- Quản lý xe  
+- Quản lý hợp đồng  
+- Quản lý bài viết  
+- Quản lý voucher  
 
 ---
 
 ## 6. 🧾 Thiết kế database
 
-Các bảng chính:
-
-- AppUser  
-- Car  
-- Booking  
-- RentalAgreement  
-- FavoriteCar  
-- Conversation  
-- Message  
-- Notification  
-- Post  
-- PostLike  
-- PostComment  
-- Voucher  
+| Bảng | Mô tả |
+|-----|------|
+| AppUser | Người dùng |
+| Car | Xe |
+| Booking | Đơn thuê |
+| RentalAgreement | Hợp đồng |
+| FavoriteCar | Xe yêu thích |
+| Conversation | Chat |
+| Message | Tin nhắn |
+| Notification | Thông báo |
+| Post | Bài viết |
+| PostLike | Like |
+| PostComment | Comment |
+| Voucher | Voucher |
 
 ---
 
 ## 7. 📊 Trạng thái đơn thuê
 
-| Status      | Ý nghĩa        |
-|------------|--------------|
-| Pending    | Chờ duyệt     |
-| Approved   | Đã duyệt      |
-| Rejected   | Từ chối       |
-| InProgress | Đang thuê     |
-| Completed  | Hoàn thành    |
+| Status | Ý nghĩa |
+|--------|--------|
+| Pending | Chờ duyệt |
+| Approved | Đã duyệt |
+| Rejected | Từ chối |
+| InProgress | Đang thuê |
+| Completed | Hoàn thành |
 
 ---
 
 ## 8. 🔐 Xác nhận điện tử
 
-- Customer:
-  - Đồng ý điều khoản hợp đồng  
-
-- Owner:
-  - Duyệt đơn = xác nhận hợp đồng  
+| Vai trò | Hành động |
+|--------|----------|
+| Customer | Đồng ý hợp đồng |
+| Admin | Duyệt đơn = xác nhận |
 
 ---
 
@@ -255,21 +257,13 @@ Các bảng chính:
 
 ---
 
-### 🔹 Owner
-
-- My Cars  
-- Booking Management  
-- Contract Management  
-- Messages  
-
----
-
-### 🔹 Admin
+### 🔹 Admin (Owner)
 
 - Dashboard  
-- User Management  
 - Car Management  
+- Booking Management  
 - Contract Management  
+- User Management  
 - Post Management  
 - Voucher Management  
 
@@ -285,18 +279,18 @@ Các bảng chính:
 | ORM | Entity Framework Core |
 | Auth | JWT |
 | PDF | PDF Service |
-| Realtime (optional) | SignalR |
+| Realtime | SignalR |
 
 ---
 
 ## 11. 🚀 Điểm nổi bật
 
-- Phân quyền rõ ràng (Admin - Owner - Customer)  
+- Phân quyền rõ ràng (Customer - Admin)  
 - Quy trình thuê xe thực tế  
 - Hợp đồng điện tử  
-- Chat nội bộ realtime  
+- Chat realtime  
 - Notification system  
-- Reward & voucher system  
+- Reward system  
 - Social features  
 
 ---
@@ -305,7 +299,7 @@ Các bảng chính:
 
 - Thanh toán online  
 - AI gợi ý xe  
-- Tích hợp bản đồ  
+- Bản đồ  
 - Ký số nâng cao  
 - Push notification  
 
