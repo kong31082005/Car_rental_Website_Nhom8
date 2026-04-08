@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import bgImage from "../assets/login-bg.jpg";
 import sideImage from "../assets/login-bg.jpg";
 
@@ -281,7 +282,8 @@ function Login() {
                       </div>
 
                       <div className="left-footer">
-                        Hệ thống thuê xe tự lái dành cho Customer, Owner và Admin
+                        Hệ thống thuê xe tự lái dành cho Customer, Owner và
+                        Admin
                       </div>
                     </div>
                   </div>
@@ -301,7 +303,9 @@ function Login() {
 
                       <form onSubmit={handleSubmit}>
                         <div className="mb-3">
-                          <label className="form-label fw-semibold">Email</label>
+                          <label className="form-label fw-semibold">
+                            Email
+                          </label>
                           <input
                             type="email"
                             name="email"
@@ -313,7 +317,9 @@ function Login() {
                             onChange={handleChange}
                           />
                           {errors.email && (
-                            <div className="invalid-feedback">{errors.email}</div>
+                            <div className="invalid-feedback">
+                              {errors.email}
+                            </div>
                           )}
                         </div>
 
@@ -371,7 +377,10 @@ function Login() {
                       </form>
 
                       <div className="register-text">
-                        Chưa có tài khoản? <span>Đăng ký ngay</span>
+                        Chưa có tài khoản?{" "}
+                        <Link to="/register">
+                          <span>Đăng ký ngay</span>
+                        </Link>
                       </div>
                     </div>
                   </div>
