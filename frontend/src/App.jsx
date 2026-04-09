@@ -7,6 +7,7 @@ import Dashboard from "./pages/AdminScreens/DashBoardScreen.jsx";
 import CarsManager from "./pages/AdminScreens/CarsManager.jsx";
 import AddCar from "./pages/AdminScreens/AddCars.jsx";
 import UsersManager from "./pages/AdminScreens/UsersManager.jsx";
+import SearchResults from "./pages/SearchResults.jsx";
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
         <Route path="/" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/home" element={<HomeCustomer />} />
+        <Route path="/search" element={<SearchResults />} />
         <Route path="/admin" element={<AdminHome />}>
           <Route index element={<Dashboard />} />
           <Route path="cars" element={<CarsManager />} />

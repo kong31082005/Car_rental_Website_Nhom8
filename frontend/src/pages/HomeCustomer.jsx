@@ -1,8 +1,14 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import CustomerHeader from "../components/CustomerHeader.jsx";
 import Footer from "../components/Footer.jsx";
+import { searchPublicCars } from "../services/carsService";
+import LocationAutocomplete from "../components/LocationAutocomplete.jsx";
+import RentalDateModal from "../components/RentalDateModal.jsx";
 
 function HomeCustomer() {
+  const navigate = useNavigate();
+
   const banners = [
     "/images/banner-1.jpg",
     "/images/banner-2.jpg",
@@ -15,129 +21,6 @@ function HomeCustomer() {
     "/images/promo-3.jpg",
     "/images/promo-4.jpg",
     "/images/promo-5.jpg",
-  ];
-
-  const featuredCars = [
-    {
-      id: 1,
-      name: "TOYOTA VELOZ CROSS 2024",
-      image: "/images/car-1.jpg",
-      discount: "Giảm 16%",
-      transmission: "Số tự động",
-      seats: "7 chỗ",
-      fuel: "Xăng",
-      location: "Phường Hiệp Bình Chánh, Quận Thủ Đức",
-      rating: "5.0",
-      trips: "14 chuyến",
-      oldPrice: "858K",
-      price: "738K/ngày",
-      instantPrice: "515K gói 4 giờ",
-    },
-    {
-      id: 2,
-      name: "TOYOTA VIOS 2022",
-      image: "/images/car-2.jpg",
-      discount: "Giảm 25%",
-      transmission: "Số tự động",
-      seats: "5 chỗ",
-      fuel: "Xăng",
-      location: "Phường Hiệp Bình Chánh, Quận Thủ Đức",
-      rating: "5.0",
-      trips: "3 chuyến",
-      oldPrice: "680K",
-      price: "530K/ngày",
-      instantPrice: "408K gói 4 giờ",
-    },
-    {
-      id: 3,
-      name: "KIA K3 PREMIUM 2023",
-      image: "/images/car-3.jpg",
-      discount: "Giảm 12%",
-      transmission: "Số tự động",
-      seats: "5 chỗ",
-      fuel: "Xăng",
-      location: "Phường Hiệp Bình Chánh, Quận Thủ Đức",
-      rating: "5.0",
-      trips: "25 chuyến",
-      oldPrice: "928K",
-      price: "828K/ngày",
-      instantPrice: "557K gói 4 giờ",
-    },
-    {
-      id: 4,
-      name: "VINFAST FADIL 2020",
-      image: "/images/car-4.jpg",
-      discount: "Giảm 21%",
-      transmission: "Số tự động",
-      seats: "5 chỗ",
-      fuel: "Xăng",
-      location: "Phường Hiệp Bình Chánh, Quận Thủ Đức",
-      rating: "5.0",
-      trips: "35 chuyến",
-      oldPrice: "537K",
-      price: "437K/ngày",
-      instantPrice: "322K gói 4 giờ",
-    },
-    {
-      id: 5,
-      name: "MAZDA 3 2023",
-      image: "/images/car-5.jpg",
-      discount: "Giảm 10%",
-      transmission: "Số tự động",
-      seats: "5 chỗ",
-      fuel: "Xăng",
-      location: "Quận 7, TP. Hồ Chí Minh",
-      rating: "4.9",
-      trips: "18 chuyến",
-      oldPrice: "780K",
-      price: "699K/ngày",
-      instantPrice: "499K gói 4 giờ",
-    },
-    {
-      id: 6,
-      name: "HONDA CITY 2023",
-      image: "/images/car-6.jpg",
-      discount: "Giảm 18%",
-      transmission: "Số tự động",
-      seats: "5 chỗ",
-      fuel: "Xăng",
-      location: "Quận Bình Thạnh, TP. Hồ Chí Minh",
-      rating: "5.0",
-      trips: "11 chuyến",
-      oldPrice: "720K",
-      price: "590K/ngày",
-      instantPrice: "430K gói 4 giờ",
-    },
-    {
-      id: 7,
-      name: "HYUNDAI ACCENT 2022",
-      image: "/images/car-7.jpg",
-      discount: "Giảm 14%",
-      transmission: "Số tự động",
-      seats: "5 chỗ",
-      fuel: "Xăng",
-      location: "Quận Gò Vấp, TP. Hồ Chí Minh",
-      rating: "4.8",
-      trips: "22 chuyến",
-      oldPrice: "650K",
-      price: "559K/ngày",
-      instantPrice: "399K gói 4 giờ",
-    },
-    {
-      id: 8,
-      name: "MITSUBISHI XPANDER 2024",
-      image: "/images/car-8.jpg",
-      discount: "Giảm 20%",
-      transmission: "Số tự động",
-      seats: "7 chỗ",
-      fuel: "Xăng",
-      location: "Thành phố Thủ Đức, TP. Hồ Chí Minh",
-      rating: "5.0",
-      trips: "9 chuyến",
-      oldPrice: "990K",
-      price: "790K/ngày",
-      instantPrice: "590K gói 4 giờ",
-    },
   ];
 
   const locations = [
@@ -260,15 +143,87 @@ function HomeCustomer() {
   ];
 
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [location, setLocation] = useState("TP. Hồ Chí Minh");
-  const [rentalTime, setRentalTime] = useState(
-    "21:00, 08/04/2026 - 20:00, 09/04/2026"
-  );
+  const [location, setLocation] = useState("");
+  const [pickupDateTime, setPickupDateTime] = useState("");
+  const [returnDateTime, setReturnDateTime] = useState("");
+  const [rentalTime, setRentalTime] = useState("Chọn thời gian thuê");
+  const [showRentalModal, setShowRentalModal] = useState(false);
+  const [searchError, setSearchError] = useState("");
   const [promoIndex, setPromoIndex] = useState(0);
   const [locationIndex, setLocationIndex] = useState(0);
+  const [featuredCars, setFeaturedCars] = useState([]);
 
   const visiblePromoCount = 3;
   const visibleLocationCount = 4;
+
+  useEffect(() => {
+    const now = new Date();
+    now.setSeconds(0, 0);
+
+    const minutes = now.getMinutes();
+    if (minutes === 0 || minutes === 30) {
+      // giữ nguyên
+    } else if (minutes < 30) {
+      now.setMinutes(30);
+    } else {
+      now.setHours(now.getHours() + 1);
+      now.setMinutes(0);
+    }
+
+    const end = new Date(now);
+    end.setDate(end.getDate() + 1);
+
+    const formatInputValue = (date) => {
+      const pad = (n) => String(n).padStart(2, "0");
+      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
+        date.getDate()
+      )}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    };
+
+    const formatDisplayValue = (start, end) => {
+      const formatOne = (d) =>
+        new Date(d).toLocaleString("vi-VN", {
+          hour: "2-digit",
+          minute: "2-digit",
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        });
+
+      return `${formatOne(start)} - ${formatOne(end)}`;
+    };
+
+    const startValue = formatInputValue(now);
+    const endValue = formatInputValue(end);
+
+    setPickupDateTime(startValue);
+    setReturnDateTime(endValue);
+    setRentalTime(formatDisplayValue(startValue, endValue));
+  }, []);
+
+  const validateSearch = () => {
+    if (!location.trim()) {
+      return "Vui lòng nhập địa điểm.";
+    }
+
+    if (!pickupDateTime || !returnDateTime) {
+      return "Vui lòng chọn thời gian thuê.";
+    }
+
+    const start = new Date(pickupDateTime);
+    const end = new Date(returnDateTime);
+    const diffDays = (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24);
+
+    if (diffDays < 1) {
+      return "Thời gian thuê tối thiểu là 1 ngày.";
+    }
+
+    if (diffDays > 30) {
+      return "Giới hạn thời gian thuê xe tối đa 30 ngày. Bạn vui lòng điều chỉnh lại thời gian phù hợp";
+    }
+
+    return "";
+  };
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -278,8 +233,117 @@ function HomeCustomer() {
     return () => clearInterval(interval);
   }, [banners.length]);
 
+  const formatPrice = (value) => {
+    if (value === null || value === undefined || value === "") return "Liên hệ";
+    return `${Number(value).toLocaleString("vi-VN")}đ/ngày`;
+  };
+
+  const getTransmissionLabel = (car) => {
+    const value = car.transmissionTypeName || car.transmission || "";
+
+    switch (value.toLowerCase()) {
+      case "automatic":
+        return "Số tự động";
+      case "manual":
+        return "Số sàn";
+      default:
+        return value || "Số tự động";
+    }
+  };
+
+  const getFuelLabel = (car) => {
+    const value = car.fuelTypeName || car.fuel || "";
+
+    switch (value.toLowerCase()) {
+      case "gasoline":
+      case "petrol":
+        return "Xăng";
+      case "diesel":
+        return "Dầu";
+      case "electric":
+        return "Điện";
+      case "hybrid":
+        return "Hybrid";
+      default:
+        return value || "Xăng";
+    }
+  };
+
+  const getLocationLabel = (car) => {
+    return (
+      car.location ||
+      car.address ||
+      car.city ||
+      car.province ||
+      "Chưa cập nhật địa chỉ"
+    );
+  };
+
+  const getCarImage = (car) => {
+    const imagePath =
+      car.thumbnail ||
+      car.image ||
+      car.imageUrl ||
+      car.images?.[0]?.imageUrl ||
+      car.images?.[0]?.url ||
+      car.carImages?.[0]?.imageUrl ||
+      car.carImages?.[0]?.url ||
+      null;
+
+    if (!imagePath) return "/images/car-placeholder.jpg";
+    if (imagePath.startsWith("http")) return imagePath;
+
+    return `http://localhost:5000${imagePath}`;
+  };
+
+  const normalizeCar = (car) => {
+    const brand = car.brand || car.brandName || "";
+    const model = car.model || car.modelName || "";
+    const year = car.year || "";
+
+    return {
+      id: car.id,
+      name: `${brand} ${model} ${year}`.trim() || "Chưa cập nhật tên xe",
+      image: getCarImage(car),
+      transmission: getTransmissionLabel(car),
+      seats: `${car.seats || 4} chỗ`,
+      fuel: getFuelLabel(car),
+      location: getLocationLabel(car),
+      rating: "5.0",
+      trips: "0 chuyến",
+      price: formatPrice(car.pricePerDay || car.price),
+    };
+  };
+
+  useEffect(() => {
+    const fetchFeaturedCars = async () => {
+      try {
+        const data = await searchPublicCars("");
+        const cars = Array.isArray(data) ? data : data?.items || [];
+        const normalizedCars = cars.slice(0, 8).map(normalizeCar);
+        setFeaturedCars(normalizedCars);
+      } catch (error) {
+        console.error("Lỗi lấy xe public:", error);
+        setFeaturedCars([]);
+      }
+    };
+
+    fetchFeaturedCars();
+  }, []);
+
   const handleSearch = () => {
-    console.log("Search:", { location, rentalTime });
+    const message = validateSearch();
+    setSearchError(message);
+
+    if (message) return;
+
+    const query = new URLSearchParams({
+      location,
+      startDate: pickupDateTime,
+      endDate: returnDateTime,
+    });
+
+    navigate(`/search?${query.toString()}`);
   };
 
   const handlePrevPromo = () => {
@@ -305,6 +369,11 @@ function HomeCustomer() {
       prev >= locations.length - visibleLocationCount ? 0 : prev + 1
     );
   };
+
+  const displayCars = [
+    ...featuredCars,
+    ...Array.from({ length: Math.max(0, 8 - featuredCars.length) }, () => null),
+  ].slice(0, 8);
 
   return (
     <>
@@ -414,55 +483,53 @@ function HomeCustomer() {
         .search-panel {
           position: absolute;
           left: 50%;
-          bottom: -58px;
+          bottom: -60px;
           transform: translateX(-50%);
           width: min(1180px, calc(100% - 40px));
           z-index: 20;
         }
 
-        .search-tabs {
-          width: fit-content;
-          margin: 0 auto;
-          background: #ffffff;
-          border-radius: 18px 18px 0 0;
-          overflow: hidden;
-          box-shadow: 0 -2px 18px rgba(0, 0, 0, 0.06);
-          display: flex;
-        }
-
-        .search-tab {
-          padding: 18px 34px;
-          font-weight: 700;
-          border: none;
-          background: #fff;
-          color: #9ca3af;
-          transition: 0.2s ease;
-        }
-
-        .search-tab.active {
-          background: #5bd48a;
-          color: #fff;
-        }
-
         .search-card {
-          background: #ffffff;
           border-radius: 24px;
+          overflow: visible;
           box-shadow: 0 18px 40px rgba(17, 24, 39, 0.14);
-          padding: 24px 26px;
+          border: 1px solid #e5e7eb;
+          background: #fff;
+        }
+
+        .search-header {
+          background: linear-gradient(135deg, #22c55e, #4ade80);
+          color: #fff;
+          text-align: center;
+          font-size: 1.4rem;
+          font-weight: 800;
+          padding: 16px;
+          border-top-left-radius: 24px;   /* 👈 thêm */
+          border-top-right-radius: 24px;  /* 👈 thêm */
+        }
+
+        .search-body {
+          background: #ffffff;
+          padding: 18px 20px;
+          position: relative;
+          overflow: visible;
+          border-bottom-left-radius: 24px;   
+          border-bottom-right-radius: 24px;  
+
         }
 
         .search-grid {
           display: grid;
-          grid-template-columns: 1.1fr 1.4fr auto;
-          gap: 0;
+          grid-template-columns: 1fr 1fr auto;
           align-items: center;
         }
 
         .search-item {
           display: flex;
-          align-items: flex-start;
-          gap: 14px;
-          padding: 8px 18px;
+          gap: 12px;
+          align-items: center;
+          padding: 6px 12px;
+          border-radius: 12px;
         }
 
         .search-item + .search-item {
@@ -495,14 +562,14 @@ function HomeCustomer() {
 
         .search-btn {
           min-width: 126px;
-          height: 68px;
+          height: 55px;
           border: none;
           border-radius: 16px;
           background: #5bd48a;
           color: white;
           font-size: 1.35rem;
           font-weight: 800;
-          padding: 0 28px;
+          padding: 0 20px;
           transition: 0.2s ease;
         }
 
@@ -594,7 +661,7 @@ function HomeCustomer() {
         .promo-btn:hover {
           background: #f3f4f6;
         }
-        
+
         .featured-section {
           padding: 20px 0 80px;
         }
@@ -621,7 +688,7 @@ function HomeCustomer() {
           background: #fff;
           border: 1px solid #e5e7eb;
           border-radius: 22px;
-          padding: 16px;
+          padding: 12px;
           box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
           transition: 0.25s ease;
         }
@@ -629,6 +696,28 @@ function HomeCustomer() {
         .car-card:hover {
           transform: translateY(-4px);
           box-shadow: 0 16px 34px rgba(15, 23, 42, 0.1);
+        }
+
+        .car-card-placeholder {
+          border: 1px dashed #d1d5db;
+          background: #f9fafb;
+          box-shadow: none;
+        }
+
+        .car-card-placeholder:hover {
+          transform: none;
+          box-shadow: none;
+        }
+
+        .car-placeholder-inner {
+          min-height: 420px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #9ca3af;
+          font-weight: 600;
+          text-align: center;
+          padding: 20px;
         }
 
         .car-image-wrap {
@@ -660,32 +749,21 @@ function HomeCustomer() {
           font-size: 1rem;
         }
 
-        .car-discount {
-          position: absolute;
-          right: 12px;
-          bottom: 12px;
-          background: #f97316;
-          color: #fff;
-          font-size: 0.95rem;
-          font-weight: 700;
-          padding: 6px 12px;
-          border-radius: 999px;
-        }
-
         .car-tags {
           display: flex;
           gap: 10px;
-          flex-wrap: wrap;
-          margin-bottom: 12px;
+          flex-wrap: nowrap;
+          overflow: hidden;
+          margin-bottom: 10px;
         }
 
         .car-tag {
           display: inline-flex;
           align-items: center;
-          gap: 6px;
+          gap: 7px;
           padding: 7px 12px;
           border-radius: 999px;
-          font-size: 0.95rem;
+          font-size: 0.9rem;
           color: #4b5563;
           background: #f9fafb;
           border: 1px solid #e5e7eb;
@@ -738,27 +816,11 @@ function HomeCustomer() {
           text-align: right;
         }
 
-        .car-old-price {
-          color: #c0c4cc;
-          font-size: 0.95rem;
-          text-decoration: line-through;
-          margin-bottom: 2px;
-        }
-
         .car-price {
           color: #22c55e;
           font-size: 1.1rem;
           font-weight: 800;
           margin-bottom: 4px;
-        }
-
-        .car-instant {
-          display: inline-block;
-          font-size: 0.92rem;
-          color: #60a5fa;
-          background: #eff6ff;
-          padding: 5px 10px;
-          border-radius: 10px;
         }
 
         .location-section {
@@ -878,20 +940,6 @@ function HomeCustomer() {
           background: #ffffff;
         }
 
-        @media (max-width: 1199.98px) {
-          .location-title {
-            font-size: 2.8rem;
-          }
-
-          .location-card {
-            flex: 0 0 calc(100% / 3);
-          }
-
-          .location-card-inner {
-            height: 400px;
-          }
-        }
-        
         .advantages-section {
           padding: 20px 0 100px;
         }
@@ -962,7 +1010,7 @@ function HomeCustomer() {
         }
 
         .insurance-wrapper {
-          max-width: 1000px; /* ↓ nhỏ lại */
+          max-width: 1000px;
           margin: 0 auto;
           position: relative;
           border-radius: 24px;
@@ -976,7 +1024,6 @@ function HomeCustomer() {
           display: block;
         }
 
-        /* text */
         .insurance-content {
           position: absolute;
           left: 250px;
@@ -1100,7 +1147,195 @@ function HomeCustomer() {
           display: inline;
         }
 
+        .location-autocomplete {
+          position: relative;
+          z-index: 200;
+        }
+
+        .location-dropdown {
+          position: absolute;
+          top: calc(100% + 8px);
+          left: 0;
+          right: 0;
+          background: #fff;
+          border: 1px solid #e5e7eb;
+          border-radius: 14px;
+          box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+          z-index: 9999;
+          overflow: hidden;
+        }
+
+        .location-dropdown-item {
+          display: block;
+          width: 100%;
+          text-align: left;
+          padding: 12px 14px;
+          border: none;
+          background: #fff;
+          cursor: pointer;
+        }
+
+        .location-dropdown-item:hover {
+          background: #f9fafb;
+        }
+
+        .search-time-btn {
+          width: 100%;
+          border: none;
+          background: transparent;
+          text-align: left;
+          padding: 0;
+          font-size: 1.05rem;
+          font-weight: 700;
+          color: #111827;
+          cursor: pointer;
+        }
+
+        .warning-icon {
+          font-size: 25px;
+          line-height: 1;
+          flex-shrink: 0;
+          margin-top: -6px;
+        }
+
+        .search-error-inline {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+
+          margin-top: 10px;
+          padding: 12px 14px;
+
+          border-radius: 12px;
+          background: #fff7ed;        
+          border: 1px solid #fdba74; 
+          color: #c2410c;             
+        }
+
+        .rental-modal-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.48);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 9999;
+        }
+
+        .rental-modal {
+          width: min(760px, calc(100% - 24px));
+          background: #fff;
+          border-radius: 24px;
+          overflow: hidden;
+        }
+
+        .rental-modal-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 22px 24px;
+          border-bottom: 1px solid #e5e7eb;
+        }
+
+        .rental-modal-header h3 {
+          margin: 0;
+          font-size: 1.9rem;
+          font-weight: 800;
+        }
+
+        .rental-close-btn {
+          width: 42px;
+          height: 42px;
+          border-radius: 50%;
+          border: 1px solid #e5e7eb;
+          background: #fff;
+          cursor: pointer;
+        }
+
+        .rental-modal-body {
+          padding: 24px;
+        }
+
+        .rental-mode-title {
+          font-size: 1.2rem;
+          font-weight: 800;
+          color: #111827;
+          margin-bottom: 22px;
+          padding-bottom: 12px;
+          border-bottom: 3px solid #5bd48a;
+          width: fit-content;
+        }
+
+        .rental-form-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 18px;
+        }
+
+        .rental-field label {
+          display: block;
+          font-weight: 700;
+          margin-bottom: 8px;
+          color: #374151;
+        }
+
+        .rental-field input {
+          width: 100%;
+          height: 50px;
+          border-radius: 14px;
+          border: 1px solid #d1d5db;
+          padding: 0 14px;
+          font-size: 1rem;
+        }
+
+        .rental-error-box {
+          margin-top: 18px;
+          display: flex;
+          align-items: flex-start;
+          gap: 14px;
+          padding: 16px;
+          border-radius: 14px;
+          background: #fff7ed;
+          border: 1px solid #fed7aa;
+        }
+
+        .rental-error-box p {
+          margin: 0;
+          color: #9a3412;
+          font-weight: 600;
+          line-height: 1.6;
+        }
+
+        .rental-modal-footer {
+          padding: 20px 24px 24px;
+          display: flex;
+          justify-content: flex-end;
+        }
+
+        .rental-confirm-btn {
+          min-width: 140px;
+          height: 48px;
+          border: none;
+          border-radius: 14px;
+          background: #5bd48a;
+          color: #fff;
+          font-weight: 800;
+          cursor: pointer;
+        }
+
         @media (max-width: 1199.98px) {
+          .location-title {
+            font-size: 2.8rem;
+          }
+
+          .location-card {
+            flex: 0 0 calc(100% / 3);
+          }
+
+          .location-card-inner {
+            height: 400px;
+          }
+
           .steps-title {
             font-size: 2.6rem;
           }
@@ -1114,12 +1349,109 @@ function HomeCustomer() {
           .step-title {
             font-size: 1.55rem;
           }
+
+          .advantages-title {
+            font-size: 2.6rem;
+          }
+
+          .advantage-title {
+            font-size: 1.45rem;
+          }
+
+          .featured-grid {
+            grid-template-columns: repeat(3, 1fr);
+          }
+
+          .featured-title {
+            font-size: 2.8rem;
+          }
+
+          .hero-title {
+            font-size: 3.2rem;
+            max-width: 760px;
+          }
         }
 
         @media (max-width: 991.98px) {
           .steps-grid {
             grid-template-columns: repeat(2, 1fr);
             gap: 30px;
+          }
+
+          .advantages-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 36px 30px;
+          }
+
+          .location-card {
+            flex: 0 0 calc(100% / 2);
+          }
+
+          .location-card-inner {
+            height: 400px;
+          }
+
+          .featured-grid {
+            grid-template-columns: repeat(2, 1fr);
+          }
+
+          .page-container {
+            width: calc(100% - 28px);
+          }
+
+          .hero-banner {
+            height: 560px;
+          }
+
+          .hero-title {
+            font-size: 2.5rem;
+          }
+
+          .hero-subtitle {
+            font-size: 1.05rem;
+          }
+
+          .search-panel {
+            position: static;
+            transform: none;
+            width: 100%;
+            margin-top: 18px;
+          }
+
+          .search-grid {
+            grid-template-columns: 1fr;
+            gap: 10px;
+          }
+
+          .search-item + .search-item {
+            border-left: none;
+            border-top: 1px solid #e5e7eb;
+            padding-top: 18px;
+          }
+
+          .search-btn {
+            width: 100%;
+            height: 56px;
+            font-size: 1.2rem;
+          }
+        }
+
+        @media (max-width: 768px) {
+          .insurance-image {
+            height: 300px;
+          }
+
+          .insurance-content {
+            left: 20px;
+            max-width: 260px;
+          }
+
+          .insurance-title {
+            font-size: 1.6rem;
+          }
+
+          .insurance-subtitle {
+            font-size: 1rem;
           }
         }
 
@@ -1146,46 +1478,7 @@ function HomeCustomer() {
           .step-title {
             font-size: 1.35rem;
           }
-        }
 
-        /* responsive */
-        @media (max-width: 768px) {
-          .insurance-image {
-            height: 300px;
-          }
-
-          .insurance-content {
-            left: 20px;
-            max-width: 260px;
-          }
-
-          .insurance-title {
-            font-size: 1.6rem;
-          }
-
-          .insurance-subtitle {
-            font-size: 1rem;
-          }
-        }
-
-        @media (max-width: 1199.98px) {
-          .advantages-title {
-            font-size: 2.6rem;
-          }
-
-          .advantage-title {
-            font-size: 1.45rem;
-          }
-        }
-
-        @media (max-width: 991.98px) {
-          .advantages-grid {
-            grid-template-columns: repeat(2, 1fr);
-            gap: 36px 30px;
-          }
-        }
-
-        @media (max-width: 575.98px) {
           .advantages-grid {
             grid-template-columns: 1fr;
             gap: 30px;
@@ -1211,19 +1504,7 @@ function HomeCustomer() {
           .advantage-description {
             font-size: 0.95rem;
           }
-        }
 
-        @media (max-width: 991.98px) {
-          .location-card {
-            flex: 0 0 calc(100% / 2);
-          }
-
-          .location-card-inner {
-            height: 400px;
-          }
-        }
-
-        @media (max-width: 575.98px) {
           .location-title {
             font-size: 2.2rem;
           }
@@ -1251,25 +1532,7 @@ function HomeCustomer() {
           .promo-card img {
             height: 220px;
           }
-        }
 
-        @media (max-width: 1199.98px) {
-          .featured-grid {
-            grid-template-columns: repeat(3, 1fr);
-          }
-
-          .featured-title {
-            font-size: 2.8rem;
-          }
-        }
-
-        @media (max-width: 991.98px) {
-          .featured-grid {
-            grid-template-columns: repeat(2, 1fr);
-          }
-        }
-
-        @media (max-width: 575.98px) {
           .featured-grid {
             grid-template-columns: 1fr;
           }
@@ -1281,64 +1544,7 @@ function HomeCustomer() {
           .car-image {
             height: 220px;
           }
-        }
 
-        @media (max-width: 1199.98px) {
-          .hero-title {
-            font-size: 3.2rem;
-            max-width: 760px;
-          }
-        }
-
-        @media (max-width: 991.98px) {
-          .page-container {
-            width: calc(100% - 28px);
-          }
-
-          .hero-banner {
-            height: 560px;
-          }
-
-          .hero-title {
-            font-size: 2.5rem;
-          }
-
-          .hero-subtitle {
-            font-size: 1.05rem;
-          }
-
-          .search-panel {
-            position: static;
-            transform: none;
-            width: 100%;
-            margin-top: 18px;
-          }
-
-          .search-tabs {
-            margin-left: 0;
-            margin-right: 0;
-            flex-wrap: wrap;
-          }
-
-          .search-grid {
-            grid-template-columns: 1fr;
-            gap: 10px;
-          }
-
-          .search-item + .search-item {
-            border-left: none;
-            border-top: 1px solid #e5e7eb;
-            padding-top: 18px;
-          }
-
-          .search-btn {
-            width: 100%;
-            height: 56px;
-            font-size: 1.2rem;
-          }
-        }
-
-        @media (max-width: 575.98px) {
           .hero-section {
             padding: 16px 0 30px;
           }
@@ -1358,16 +1564,6 @@ function HomeCustomer() {
 
           .hero-subtitle {
             font-size: 0.95rem;
-          }
-
-          .search-card {
-            padding: 18px 16px;
-            border-radius: 18px;
-          }
-
-          .search-tab {
-            padding: 14px 18px;
-            font-size: 0.92rem;
           }
         }
       `}</style>
@@ -1410,49 +1606,50 @@ function HomeCustomer() {
               </div>
 
               <div className="search-panel">
-                <div className="search-tabs">
-                  <button className="search-tab active">Xe tự lái</button>
-                  <button className="search-tab">Xe có tài xế</button>
-                  <button className="search-tab">Thuê xe dài hạn</button>
-                </div>
-
                 <div className="search-card">
-                  <div className="search-grid">
-                    <div className="search-item">
-                      <div className="search-icon">📍</div>
-                      <div className="w-100">
-                        <div className="search-label">Địa điểm</div>
-                        <select
-                          className="search-select"
-                          value={location}
-                          onChange={(e) => setLocation(e.target.value)}
-                        >
-                          <option>TP. Hồ Chí Minh</option>
-                          <option>Hà Nội</option>
-                          <option>Đà Nẵng</option>
-                          <option>Cần Thơ</option>
-                        </select>
+                  <div className="search-header">Tìm xe tự lái</div>
+
+                  <div className="search-body">
+                    <div className="search-grid">
+                      <div className="search-item">
+                        <div className="search-icon">📍</div>
+                        <div className="w-100">
+                          <div className="search-label">Địa điểm</div>
+                          <LocationAutocomplete
+                            value={location}
+                            onChange={setLocation}
+                            placeholder="Nhập địa điểm"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="search-item">
+                        <div className="search-icon">📅</div>
+                        <div className="w-100">
+                          <div className="search-label">Thời gian thuê</div>
+                          <button
+                            type="button"
+                            className="search-time-btn"
+                            onClick={() => setShowRentalModal(true)}
+                          >
+                            {rentalTime}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="ps-lg-4 pt-3 pt-lg-0">
+                        <button className="search-btn" onClick={handleSearch}>
+                          Tìm Xe
+                        </button>
                       </div>
                     </div>
 
-                    <div className="search-item">
-                      <div className="search-icon">📅</div>
-                      <div className="w-100">
-                        <div className="search-label">Thời gian thuê</div>
-                        <input
-                          type="text"
-                          className="search-input"
-                          value={rentalTime}
-                          onChange={(e) => setRentalTime(e.target.value)}
-                        />
+                    {searchError && (
+                      <div className="search-error-inline">
+                        <span className="warning-icon">⚠️</span>
+                        <span>{searchError}</span>
                       </div>
-                    </div>
-
-                    <div className="ps-lg-4 pt-3 pt-lg-0">
-                      <button className="search-btn" onClick={handleSearch}>
-                        Tìm Xe
-                      </button>
-                    </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1507,44 +1704,49 @@ function HomeCustomer() {
             </div>
 
             <div className="featured-grid">
-              {featuredCars.map((car) => (
-                <div className="car-card" key={car.id}>
-                  <div className="car-image-wrap">
-                    <img src={car.image} alt={car.name} className="car-image" />
-                    <div className="car-badge-top">⚡</div>
-                    <div className="car-discount">{car.discount}</div>
-                  </div>
-
-                  <div className="car-tags">
-                    <span className="car-tag">🛡 Miễn thế chấp</span>
-                    <span className="car-tag">📍 Giao xe tận nơi</span>
-                  </div>
-
-                  <div className="car-name">{car.name}</div>
-
-                  <div className="car-specs">
-                    <span>⚙ {car.transmission}</span>
-                    <span>🪑 {car.seats}</span>
-                    <span>⛽ {car.fuel}</span>
-                  </div>
-
-                  <div className="car-location">📍 {car.location}</div>
-
-                  <div className="car-divider"></div>
-
-                  <div className="car-bottom">
-                    <div className="car-rating">
-                      ⭐ {car.rating} • 🚗 {car.trips}
+              {displayCars.map((car, index) =>
+                car ? (
+                  <div className="car-card" key={car.id}>
+                    <div className="car-image-wrap">
+                      <img src={car.image} alt={car.name} className="car-image" />
+                      <div className="car-badge-top">⚡</div>
                     </div>
 
-                    <div className="car-price-box">
-                      <div className="car-old-price">{car.oldPrice}</div>
-                      <div className="car-price">{car.price}</div>
-                      <div className="car-instant">🕒 {car.instantPrice}</div>
+                    <div className="car-tags">
+                      <span className="car-tag">🛡 Miễn thế chấp</span>
+                      <span className="car-tag">📍 Giao xe tận nơi</span>
+                    </div>
+
+                    <div className="car-name">{car.name}</div>
+
+                    <div className="car-specs">
+                      <span>⚙ {car.transmission}</span>
+                      <span>🪑 {car.seats}</span>
+                      <span>⛽ {car.fuel}</span>
+                    </div>
+
+                    <div className="car-location">📍 {car.location}</div>
+
+                    <div className="car-divider"></div>
+
+                    <div className="car-bottom">
+                      <div className="car-rating">
+                        ⭐ {car.rating} • 🚗 {car.trips}
+                      </div>
+
+                      <div className="car-price-box">
+                        <div className="car-price">{car.price}</div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ) : (
+                  <div className="car-card car-card-placeholder" key={`empty-${index}`}>
+                    <div className="car-placeholder-inner">
+                      <span>Đang cập nhật xe mới</span>
+                    </div>
+                  </div>
+                )
+              )}
             </div>
           </div>
         </section>
@@ -1594,6 +1796,7 @@ function HomeCustomer() {
             </div>
           </div>
         </section>
+
         <section className="advantages-section">
           <div className="page-container">
             <div className="advantages-header">
@@ -1621,6 +1824,7 @@ function HomeCustomer() {
             </div>
           </div>
         </section>
+
         <section className="insurance-section">
           <div className="page-container">
             <div className="insurance-header">
@@ -1638,20 +1842,14 @@ function HomeCustomer() {
 
               <div className="insurance-content">
                 <div className="insurance-brand">Kongcars</div>
-
                 <div className="insurance-title">Bảo hiểm thuê xe</div>
-
-                <div className="insurance-subtitle">
-                  An tâm hành trình
-                </div>
-
-                <div className="insurance-btn">
-                  Tìm hiểu thêm
-                </div>
+                <div className="insurance-subtitle">An tâm hành trình</div>
+                <div className="insurance-btn">Tìm hiểu thêm</div>
               </div>
             </div>
           </div>
         </section>
+
         <section className="steps-section">
           <div className="page-container">
             <div className="steps-header">
@@ -1678,6 +1876,28 @@ function HomeCustomer() {
           </div>
         </section>
       </div>
+      <RentalDateModal
+        open={showRentalModal}
+        onClose={() => setShowRentalModal(false)}
+        startValue={pickupDateTime}
+        endValue={returnDateTime}
+        onConfirm={(start, end) => {
+          setPickupDateTime(start);
+          setReturnDateTime(end);
+
+          const formatOne = (d) =>
+            new Date(d).toLocaleString("vi-VN", {
+              hour: "2-digit",
+              minute: "2-digit",
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric",
+            });
+
+          setRentalTime(`${formatOne(start)} - ${formatOne(end)}`);
+          setSearchError("");
+        }}
+      />
 
       <Footer />
     </>
