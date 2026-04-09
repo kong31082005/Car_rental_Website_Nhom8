@@ -1,4 +1,4 @@
-function AdminSidebar({ menus, selectedMenu, setSelectedMenu }) {
+function AdminSidebar({ menus, currentPath, onMenuClick }) {
   return (
     <>
       <style>{`
@@ -127,11 +127,11 @@ function AdminSidebar({ menus, selectedMenu, setSelectedMenu }) {
         <div className="menu-list">
           {menus.map((menu) => (
             <button
-              key={menu}
-              className={`menu-item ${selectedMenu === menu ? "active" : ""}`}
-              onClick={() => setSelectedMenu(menu)}
+              key={menu.path}
+              className={`menu-item ${currentPath === menu.path ? "active" : ""}`}
+              onClick={() => onMenuClick(menu.path)}
             >
-              {menu}
+              {menu.name}
             </button>
           ))}
         </div>
