@@ -1,50 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import CustomerHeader from "../components/CustomerHeader.jsx";
 import Footer from "../components/Footer.jsx";
-import { searchPublicCars, getFavoriteCars, toggleFavorite, } from "../services/carsService";
-import { Heart } from "lucide-react";
-import toast from "react-hot-toast";
+import { getFavoriteCars, toggleFavorite } from "../services/carsService";
+import { ArrowLeft, Heart } from "lucide-react";
 
-function SearchResults() {
-  const location = useLocation();
+function FavoriteCars() {
   const navigate = useNavigate();
 
   const [cars, setCars] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [favoriteIds, setFavoriteIds] = useState([]);
-  const [favoriteLoadingId, setFavoriteLoadingId] = useState(null);
-  const token = localStorage.getItem("token");
-
-  const requireLogin = () => {
-    if (!token) {
-      toast.error("Vui lòng đăng nhập để dùng tính năng này ❤️");
-      return false;
-    }
-    return true;
-  };
-
-  const queryParams = useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    return {
-      searchLocation: params.get("location") || "",
-      startDate: params.get("startDate") || "",
-      endDate: params.get("endDate") || "",
-    };
-  }, [location.search]);
-
-  const formatDisplayDateTime = (value) => {
-    if (!value) return "";
-    const d = new Date(value);
-    return d.toLocaleString("vi-VN", {
-      hour: "2-digit",
-      minute: "2-digit",
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
-  };
+  const [processingId, setProcessingId] = useState(null);
 
   const formatPrice = (value) => {
     if (value === null || value === undefined || value === "") return "Liên hệ";
@@ -53,7 +20,7 @@ function SearchResults() {
 
   const getTransmissionLabel = (car) => {
     const value = car.transmissionTypeName || car.transmission || "";
-    switch (value.toLowerCase()) {
+    switch (String(value).toLowerCase()) {
       case "automatic":
         return "Số tự động";
       case "manual":
@@ -65,7 +32,7 @@ function SearchResults() {
 
   const getFuelLabel = (car) => {
     const value = car.fuelTypeName || car.fuel || "";
-    switch (value.toLowerCase()) {
+    switch (String(value).toLowerCase()) {
       case "gasoline":
       case "petrol":
         return "Xăng";
@@ -103,6 +70,7 @@ function SearchResults() {
 
     if (!imagePath) return "/images/car-placeholder.jpg";
     if (imagePath.startsWith("http")) return imagePath;
+
     return `http://localhost:5000${imagePath}`;
   };
 
@@ -122,76 +90,50 @@ function SearchResults() {
       rating: "5.0",
       trips: "0 chuyến",
       price: formatPrice(car.pricePerDay || car.price),
+      isFavorite: true,
     };
   };
 
-  const handleToggleFavorite = async (e, carId) => {
-    e.stopPropagation();
-
-    if (!requireLogin()) return;
-
+  const fetchFavorites = async () => {
     try {
-      setFavoriteLoadingId(carId);
+      setLoading(true);
+      setError("");
 
-      await toggleFavorite(carId);
-
-      setFavoriteIds((prev) =>
-        prev.includes(carId)
-          ? prev.filter((id) => id !== carId)
-          : [...prev, carId]
-      );
+      const data = await getFavoriteCars();
+      const rawCars = Array.isArray(data) ? data : data?.items || [];
+      setCars(rawCars.map(normalizeCar));
     } catch (err) {
-      console.error("Lỗi toggle favorite:", err);
+      setError(err.message || "Không tải được danh sách yêu thích.");
+      setCars([]);
     } finally {
-      setFavoriteLoadingId(null);
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    const fetchFavorites = async () => {
-      try {
-        const data = await getFavoriteCars();
-        console.log("favorite response =", data);
-        const rawCars = Array.isArray(data) ? data : data?.items || [];
-        setFavoriteIds(rawCars.map((car) => car.id));
-      } catch (err) {
-        console.error("Lỗi lấy favorite:", err);
-        setFavoriteIds([]);
-      }
-    };
-
     fetchFavorites();
   }, []);
 
-  useEffect(() => {
-    const fetchCars = async () => {
-      try {
-        setLoading(true);
-        setError("");
+  const handleToggleFavorite = async (e, carId) => {
+    e.stopPropagation();
 
-        const data = await searchPublicCars({
-          location: queryParams.searchLocation,
-          startDate: queryParams.startDate,
-          endDate: queryParams.endDate,
-        });
+    try {
+      setProcessingId(carId);
 
-        const rawCars = Array.isArray(data) ? data : data?.items || [];
-        setCars(rawCars.map(normalizeCar));
-      } catch (err) {
-        setError(err.message || "Không tìm thấy xe phù hợp.");
-        setCars([]);
-      } finally {
-        setLoading(false);
-      }
-    };
+      await toggleFavorite(carId);
 
-    fetchCars();
-  }, [queryParams]);
+      setCars((prev) => prev.filter((car) => car.id !== carId));
+    } catch (err) {
+      alert(err.message || "Cập nhật yêu thích thất bại");
+    } finally {
+      setProcessingId(null);
+    }
+  };
 
   return (
     <>
       <style>{`
-        .search-results-page {
+        .favorite-page {
           min-height: 100vh;
           background: #fff;
         }
@@ -201,57 +143,40 @@ function SearchResults() {
           margin: 0 auto;
         }
 
-        .result-topbar {
-          width: 100%;
-          background: #ffffff;
-          border-top: 1px solid #e5e7eb;
-          border-bottom: 1px solid #e5e7eb;
-          padding: 16px 0;
-        }
-
-        .result-topbar-content {
-          display: flex;
-          align-items: center;
-          gap: 18px;
-          min-height: 48px;
-        }
-
-        .result-back-btn {
-          width: 44px;
-          height: 44px;
-          border-radius: 50%;
-          border: 1px solid #e5e7eb;
-          background: #fff;
-          font-size: 1.1rem;
-          cursor: pointer;
-          flex-shrink: 0;
-        }
-
-        .result-back-btn:hover {
-          background: #f9fafb;
-        }
-
-        .result-summary-info {
-          display: flex;
-          align-items: center;
-          gap: 26px;
-          flex-wrap: wrap;
-        }
-
-        .result-summary-item {
-          font-size: 1.02rem;
-          font-weight: 600;
-          color: #111827;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-
-        .result-section {
+        .favorite-section {
           padding: 28px 0 80px;
         }
 
-        .results-title {
+        .favorite-topbar {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          background: #fff;
+          border: 1px solid #e5e7eb;
+          border-radius: 16px;
+          padding: 14px 18px;
+          margin-bottom: 28px;
+        }
+
+        .favorite-back-btn {
+          width: 42px;
+          height: 42px;
+          border-radius: 50%;
+          border: 1px solid #e5e7eb;
+          background: #fff;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+        }
+
+        .favorite-topbar-text {
+          font-size: 1.05rem;
+          font-weight: 700;
+          color: #111827;
+        }
+
+        .favorite-title {
           font-size: 2rem;
           font-weight: 800;
           margin-bottom: 20px;
@@ -271,6 +196,7 @@ function SearchResults() {
           padding: 12px;
           box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
           transition: 0.25s ease;
+          cursor: pointer;
         }
 
         .car-card:hover {
@@ -296,11 +222,11 @@ function SearchResults() {
           position: absolute;
           top: 12px;
           right: 12px;
-          width: 36px;
-          height: 36px;
+          width: 38px;
+          height: 38px;
           border-radius: 50%;
           border: none;
-          background: rgba(255,255,255,0.95);
+          background: rgba(255,255,255,0.96);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -308,13 +234,13 @@ function SearchResults() {
         }
 
         .favorite-btn svg {
-          color: #9ca3af;
-          fill: transparent;
-        }
-
-        .favorite-btn.active svg {
           color: #ec4899;
           fill: #ec4899;
+        }
+
+        .favorite-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
         }
 
         .car-badge-top {
@@ -410,31 +336,10 @@ function SearchResults() {
           color: #6b7280;
         }
 
-        .empty-state {
-          padding: 70px 20px;
-        }
-
-        .empty-state img,
-        .error-state img {
+        .empty-state img {
           width: 180px;
           max-width: 100%;
-          height: auto;
-          margin-bottom: 20px;
-          object-fit: contain;
-        }
-
-        .empty-state-title,
-        .error-state-title {
-          font-size: 1.4rem;
-          font-weight: 700;
-          color: #111827;
-          margin-bottom: 8px;
-        }
-
-        .empty-state-text,
-        .error-state-text {
-          font-size: 1rem;
-          color: #6b7280;
+          margin-bottom: 14px;
         }
 
         @media (max-width: 1199.98px) {
@@ -451,14 +356,6 @@ function SearchResults() {
           .page-container {
             width: calc(100% - 28px);
           }
-
-          .result-topbar-content {
-            align-items: flex-start;
-          }
-
-          .result-summary-info {
-            gap: 14px;
-          }
         }
 
         @media (max-width: 575.98px) {
@@ -469,81 +366,52 @@ function SearchResults() {
           .car-image {
             height: 200px;
           }
-
-          .results-title {
-            font-size: 1.7rem;
-          }
         }
       `}</style>
 
-      <div className="search-results-page">
+      <div className="favorite-page">
         <CustomerHeader />
 
-        <div className="result-topbar">
+        <section className="favorite-section">
           <div className="page-container">
-            <div className="result-topbar-content">
-              <button className="result-back-btn" onClick={() => navigate(-1)}>
-                ←
+            <div className="favorite-topbar">
+              <button className="favorite-back-btn" onClick={() => navigate(-1)}>
+                <ArrowLeft size={18} />
               </button>
-
-              <div className="result-summary-info">
-                <div className="result-summary-item">
-                  <span>📍</span>
-                  <span>{queryParams.searchLocation || "Tất cả địa điểm"}</span>
-                </div>
-
-                <div className="result-summary-item">
-                  <span>📅</span>
-                  <span>
-                    {formatDisplayDateTime(queryParams.startDate)} -{" "}
-                    {formatDisplayDateTime(queryParams.endDate)}
-                  </span>
-                </div>
-              </div>
+              <div className="favorite-topbar-text">Danh sách xe yêu thích</div>
             </div>
-          </div>
-        </div>
 
-        <section className="result-section">
-          <div className="page-container">
-            <h2 className="results-title">Danh sách xe phù hợp</h2>
+            <h2 className="favorite-title">Xe yêu thích</h2>
 
             {loading ? (
-              <div className="loading-state">Đang tải danh sách xe...</div>
+              <div className="loading-state">Đang tải danh sách yêu thích...</div>
             ) : error ? (
-              <div className="error-state">
-                <img src="/images/empty-search.svg" alt="Không tìm thấy" />
-                <div className="error-state-title">Không tìm thấy xe phù hợp</div>
-                <div className="error-state-text">{error}</div>
-              </div>
+              <div className="error-state">{error}</div>
             ) : cars.length === 0 ? (
               <div className="empty-state">
-                <img src="/images/empty-search.svg" alt="Không tìm thấy" />
-                <div className="empty-state-title">Không tìm thấy xe phù hợp</div>
-                <div className="empty-state-text">
-                  Hãy thử thay đổi địa điểm hoặc thời gian thuê để xem thêm kết quả.
-                </div>
+                <img src="/images/empty-search.svg" alt="Không có xe yêu thích" />
+                <div>Chưa có xe nào trong danh sách yêu thích</div>
               </div>
             ) : (
               <div className="results-grid">
                 {cars.map((car) => (
-                  <div className="car-card" key={car.id}
-                        onClick={() =>
-                          navigate(
-                            `/cars/${car.id}?startDate=${encodeURIComponent(queryParams.startDate)}&endDate=${encodeURIComponent(queryParams.endDate)}&location=${encodeURIComponent(queryParams.searchLocation)}`
-                          )
-                        }
-                        style={{ cursor: "pointer" }}>
-                    
+                  <div
+                    className="car-card"
+                    key={car.id}
+                    onClick={() => navigate(`/cars/${car.id}`)}
+                  >
                     <div className="car-image-wrap">
                       <img src={car.image} alt={car.name} className="car-image" />
+
                       <button
-                        className={`favorite-btn ${favoriteIds.includes(car.id) ? "active" : ""}`}
+                        className="favorite-btn"
                         onClick={(e) => handleToggleFavorite(e, car.id)}
-                        disabled={favoriteLoadingId === car.id}
+                        disabled={processingId === car.id}
+                        title="Bỏ yêu thích"
                       >
                         <Heart size={18} />
                       </button>
+
                       <div className="car-badge-top">⚡</div>
                     </div>
 
@@ -583,4 +451,4 @@ function SearchResults() {
   );
 }
 
-export default SearchResults;
+export default FavoriteCars;

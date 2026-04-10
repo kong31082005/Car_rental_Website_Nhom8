@@ -43,7 +43,7 @@ export const getMyCars = async () => {
   }
 };
 
-// Lấy chi tiết xe (cho chủ xe)
+// Lấy chi tiết xe
 export const getCarDetail = async (carId) => {
   try {
     const response = await api.get(`/cars/${carId}`);
