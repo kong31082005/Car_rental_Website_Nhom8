@@ -7,7 +7,12 @@ import Dashboard from "./pages/AdminScreens/DashBoardScreen.jsx";
 import CarsManager from "./pages/AdminScreens/CarsManager.jsx";
 import AddCar from "./pages/AdminScreens/AddCars.jsx";
 import UsersManager from "./pages/AdminScreens/UsersManager.jsx";
-
+import BookingManagement from "./pages/AdminScreens/BookingManager.jsx";
+import ContractManager from "./pages/AdminScreens/ContractManager.jsx";
+import VoucherManager from "./pages/AdminScreens/VoucherManager.jsx";
+import NewsManagement from "./pages/AdminScreens/NewsManagement.jsx";
+import AdminSettings from "./pages/AdminScreens/AdminSettings.jsx";
+import SearchResults from "./pages/SearchResults.jsx";
 function App() {
   return (
     <BrowserRouter>
