@@ -132,6 +132,12 @@ public class PublicCarsController : ControllerBase
                 c.PricePerDay,
                 c.IsAvailable,
                 c.CreatedAt,
+                Owner = c.Owner == null ? null : new
+                {
+                    c.Owner.Id,
+                    c.Owner.FullName,
+                    c.Owner.PhoneNumber
+                },
 
                 Images = _db.CarImages
                     .Where(i => i.CarId == c.Id && (int)i.Type >= 0 && (int)i.Type <= 3)
@@ -167,6 +173,7 @@ public class PublicCarsController : ControllerBase
             car.PricePerDay,
             car.IsAvailable,
             car.CreatedAt,
+            Owner = car.Owner,
             Images = car.Images.Select(i => new
             {
                 i.Id,
