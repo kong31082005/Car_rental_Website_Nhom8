@@ -8,6 +8,11 @@ import Dashboard from "./pages/AdminScreens/DashBoardScreen.jsx";
 import CarsManager from "./pages/AdminScreens/CarsManager.jsx";
 import AddCar from "./pages/AdminScreens/AddCars.jsx";
 import UsersManager from "./pages/AdminScreens/UsersManager.jsx";
+import BookingManagement from "./pages/AdminScreens/BookingManager.jsx";
+import ContractManager from "./pages/AdminScreens/ContractManager.jsx";
+import VoucherManager from "./pages/AdminScreens/VoucherManager.jsx";
+import NewsManagement from "./pages/AdminScreens/NewsManager.jsx";
+import AdminSettings from "./pages/AdminScreens/Setting.jsx";
 import SearchResults from "./pages/SearchResults.jsx";
 import CarDetail from "./pages/CarDetail.jsx";
 import FavoriteCars from "./pages/FavoriteCars.jsx";
@@ -48,6 +53,11 @@ function App() {
           <Route path="cars" element={<CarsManager />} />
           <Route path="add-car" element={<AddCar />} />
           <Route path="users" element={<UsersManager />} />
+          <Route path="orders" element={<BookingManagement />} />
+          <Route path="contracts" element={<ContractManager />} />
+          <Route path="vouchers" element={<VoucherManager />} />
+          <Route path="news" element={<NewsManagement />} />
+          <Route path="settings" element={<AdminSettings />} />
         </Route>
       </Routes>
     </BrowserRouter>
