@@ -7,11 +7,6 @@ import Dashboard from "./pages/AdminScreens/DashBoardScreen.jsx";
 import CarsManager from "./pages/AdminScreens/CarsManager.jsx";
 import AddCar from "./pages/AdminScreens/AddCars.jsx";
 import UsersManager from "./pages/AdminScreens/UsersManager.jsx";
-import BookingManagement from "./pages/AdminScreens/BookingManager.jsx";
-import ContractManager from "./pages/AdminScreens/ContractManager.jsx";
-import VoucherManager from "./pages/AdminScreens/VoucherManager.jsx";
-import NewsManagement from "./pages/AdminScreens/NewsManager.jsx";
-import AdminSettings from "./pages/AdminScreens/Setting.jsx";
 
 function App() {
   return (
@@ -20,6 +15,7 @@ function App() {
         <Route path="/" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/home" element={<HomeCustomer />} />
+        <Route path="/search" element={<SearchResults />} />
         <Route path="/admin" element={<AdminHome />}>
           <Route index element={<Dashboard />} />
           <Route path="cars" element={<CarsManager />} />

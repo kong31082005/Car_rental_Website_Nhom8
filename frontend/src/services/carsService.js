@@ -85,10 +85,22 @@ export const addCarImage = async (carId, payload) => {
 
 // ==================== PUBLIC CARS ====================
 // Tìm xe công khai theo địa điểm
-export const searchPublicCars = async (location) => {
+export const searchPublicCars = async (params = {}) => {
   try {
-    const q = encodeURIComponent(location || "");
-    const response = await api.get(`/public/cars?location=${q}`);
+    if (typeof params === "string") {
+      const response = await api.get(
+        `/public/cars?location=${encodeURIComponent(params)}`
+      );
+      return response.data;
+    }
+
+    const query = new URLSearchParams();
+
+    if (params.location) query.append("location", params.location);
+    if (params.startDate) query.append("startDate", params.startDate);
+    if (params.endDate) query.append("endDate", params.endDate);
+
+    const response = await api.get(`/public/cars?${query.toString()}`);
     return response.data;
   } catch (error) {
     throw new Error(error.response?.data?.message || "Tìm xe thất bại");
