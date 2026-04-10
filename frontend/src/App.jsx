@@ -10,9 +10,10 @@ import UsersManager from "./pages/AdminScreens/UsersManager.jsx";
 import BookingManagement from "./pages/AdminScreens/BookingManager.jsx";
 import ContractManager from "./pages/AdminScreens/ContractManager.jsx";
 import VoucherManager from "./pages/AdminScreens/VoucherManager.jsx";
-import NewsManagement from "./pages/AdminScreens/NewsManagement.jsx";
-import AdminSettings from "./pages/AdminScreens/AdminSettings.jsx";
+import NewsManagement from "./pages/AdminScreens/NewsManager.jsx";
+import AdminSettings from "./pages/AdminScreens/Setting.jsx";
 import SearchResults from "./pages/SearchResults.jsx";
+
 function App() {
   return (
     <BrowserRouter>
