@@ -1,9 +1,13 @@
 import { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   createCar,
+  updateCar,
+  getCarDetail,
   uploadImage,
   addCarImage,
 } from "../../services/carsService";
+import { carBrands } from "../../constants/mockdata";
 
 function AddCar() {
   // State quản lý hình ảnh
@@ -43,6 +47,13 @@ function AddCar() {
     interior: null,
     others: null,
   });
+  const [editMode, setEditMode] = useState(false);
+  const [editingCarId, setEditingCarId] = useState(null);
+
+  // State cho dropdown models
+  const [availableModels, setAvailableModels] = useState([]);
+  const navigate = useNavigate();
+  const { id } = useParams();
 
   // Auto-hide success notifications
   useEffect(() => {
@@ -70,6 +81,62 @@ function AddCar() {
   const removeNotification = (id) => {
     setNotifications((prev) => prev.filter((n) => n.id !== id));
   };
+
+  useEffect(() => {
+    if (!id) return;
+
+    const loadCar = async () => {
+      try {
+        const car = await getCarDetail(id);
+        setEditMode(true);
+        setEditingCarId(id);
+        setCarDetails({
+          licensePlate: car.LicensePlate || "",
+          brand: car.brand || "",
+          model: car.model || "",
+          year: car.year || 2024,
+          seats: car.seats || 5,
+          transmission: car.transmission || "Automatic",
+          fuel: car.fuel || "Gasoline",
+          consumption: car.fuelConsumption || "",
+          address: car.address || "",
+          description: car.description || "",
+        });
+        setPrice({
+          perDay: car.pricePerDay || 0,
+          overtime: car.overtimePrice || 0,
+        });
+
+        // Cập nhật availableModels cho brand hiện tại
+        if (car.brand) {
+          const selectedBrand = carBrands.find((b) => b.brand === car.brand);
+          setAvailableModels(selectedBrand ? selectedBrand.models : []);
+        }
+      } catch (loadError) {
+        console.error("Lỗi khi tải dữ liệu xe để sửa:", loadError);
+        addNotification(
+          "error",
+          "Không tải được dữ liệu xe",
+          "Vui lòng thử lại hoặc kiểm tra lại đường dẫn.",
+        );
+      }
+    };
+
+    loadCar();
+  }, [id]);
+
+  // Cập nhật danh sách models khi brand thay đổi
+  useEffect(() => {
+    if (carDetails.brand) {
+      const selectedBrand = carBrands.find((b) => b.brand === carDetails.brand);
+      setAvailableModels(selectedBrand ? selectedBrand.models : []);
+      // Reset model khi brand thay đổi
+      setCarDetails((prev) => ({ ...prev, model: "" }));
+    } else {
+      setAvailableModels([]);
+      setCarDetails((prev) => ({ ...prev, model: "" }));
+    }
+  }, [carDetails.brand]);
 
   const handleImageChange = (e, type) => {
     const file = e.target.files[0];
@@ -144,17 +211,27 @@ function AddCar() {
         setProgress(10 + ((i + 1) / imageTypes.length) * 40); // Max 50% sau khi xong ảnh
       }
 
-      // Bước 2: Tạo xe
+      // Bước 2: Tạo hoặc cập nhật xe
       const carPayload = {
         ...carDetails,
+        fuelConsumption: carDetails.consumption
+          ? parseFloat(carDetails.consumption)
+          : undefined,
         pricePerDay: parseInt(price.perDay),
         overtimePrice: parseInt(price.overtime) || 0,
         year: parseInt(carDetails.year),
         seats: parseInt(carDetails.seats),
       };
 
-      const carResponse = await createCar(carPayload);
-      const carId = carResponse.id || carResponse.carId;
+      let carId;
+      if (editMode && editingCarId) {
+        await updateCar(editingCarId, carPayload);
+        carId = editingCarId;
+      } else {
+        const carResponse = await createCar(carPayload);
+        carId = carResponse.id || carResponse.carId;
+      }
+
       setProgress(80);
 
       // Bước 3: Thêm ảnh vào xe (Xử lý ngầm)
@@ -168,12 +245,22 @@ function AddCar() {
       setProgress(100);
       addNotification(
         "success",
-        "Thêm xe thành công!",
-        `Xe ${carDetails.brand} ${carDetails.model} đã được lưu vào hệ thống.`,
+        editMode ? "Cập nhật xe thành công!" : "Thêm xe thành công!",
+        `Xe ${carDetails.brand} ${carDetails.model} đã được ${editMode ? "cập nhật" : "lưu"} vào hệ thống.`,
       );
 
-      // Reset form sau khi thành công
-      resetForm();
+      // Nếu đang sửa thì hiển thị thông báo 2 giây rồi mới chuyển về trang quản lý
+      if (editMode) {
+        setTimeout(() => {
+          navigate("/admin/cars");
+        }, 1500);
+        return;
+      }
+
+      // Reset form sau khi thành công (chỉ với chế độ thêm mới)
+      if (!editMode) {
+        resetForm();
+      }
     } catch (error) {
       console.error("Lỗi quy trình thêm xe:", error);
       // Chỉ hiện THẤT BẠI tại đây
@@ -435,7 +522,7 @@ function AddCar() {
       `}</style>
 
       <h1 style={{ fontSize: "1.8rem", fontWeight: 900, marginBottom: "24px" }}>
-        Thêm xe vào hệ thống
+        {editMode ? "Sửa thông tin xe" : "Thêm xe vào hệ thống"}
       </h1>
 
       {/* Progress Bar */}
@@ -462,6 +549,7 @@ function AddCar() {
                 type="text"
                 placeholder="Ví dụ: 30H-123.45"
                 disabled={loading}
+                value={carDetails.licensePlate}
                 onChange={(e) =>
                   setCarDetails({ ...carDetails, licensePlate: e.target.value })
                 }
@@ -475,19 +563,17 @@ function AddCar() {
 
               <select
                 disabled={loading}
+                value={carDetails.brand}
                 onChange={(e) =>
                   setCarDetails({ ...carDetails, brand: e.target.value })
                 }
               >
                 <option value="">Chọn hãng</option>
-
-                <option value="Toyota">Toyota</option>
-
-                <option value="Kia">Kia</option>
-
-                <option value="Hyundai">Hyundai</option>
-
-                <option value="Ford">Ford</option>
+                {carBrands.map((brandData) => (
+                  <option key={brandData.brand} value={brandData.brand}>
+                    {brandData.brand}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -496,14 +582,20 @@ function AddCar() {
                 Mẫu xe <span className="required">*</span>
               </label>
 
-              <input
-                type="text"
-                placeholder="Ví dụ: Vios"
+              <select
                 disabled={loading}
+                value={carDetails.model}
                 onChange={(e) =>
                   setCarDetails({ ...carDetails, model: e.target.value })
                 }
-              />
+              >
+                <option value="">Chọn mẫu xe</option>
+                {availableModels.map((model) => (
+                  <option key={model} value={model}>
+                    {model}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -515,7 +607,7 @@ function AddCar() {
 
               <input
                 type="number"
-                defaultValue="2024"
+                value={carDetails.year}
                 disabled={loading}
                 onChange={(e) =>
                   setCarDetails({ ...carDetails, year: e.target.value })
@@ -530,6 +622,7 @@ function AddCar() {
 
               <select
                 disabled={loading}
+                value={carDetails.seats}
                 onChange={(e) =>
                   setCarDetails({ ...carDetails, seats: e.target.value })
                 }
@@ -553,12 +646,11 @@ function AddCar() {
                     type="radio"
                     name="transmission"
                     value="Automatic"
-                    defaultChecked
+                    checked={carDetails.transmission === "Automatic"}
                     disabled={loading}
                     onChange={(e) =>
                       setCarDetails({
                         ...carDetails,
-
                         transmission: e.target.value,
                       })
                     }
@@ -571,11 +663,11 @@ function AddCar() {
                     type="radio"
                     name="transmission"
                     value="Manual"
+                    checked={carDetails.transmission === "Manual"}
                     disabled={loading}
                     onChange={(e) =>
                       setCarDetails({
                         ...carDetails,
-
                         transmission: e.target.value,
                       })
                     }
@@ -600,6 +692,7 @@ function AddCar() {
 
               <select
                 disabled={loading}
+                value={carDetails.fuel}
                 onChange={(e) =>
                   setCarDetails({ ...carDetails, fuel: e.target.value })
                 }
@@ -621,6 +714,7 @@ function AddCar() {
                 type="text"
                 placeholder="Ví dụ: 6.5"
                 disabled={loading}
+                value={carDetails.consumption}
                 onChange={(e) =>
                   setCarDetails({ ...carDetails, consumption: e.target.value })
                 }
@@ -636,6 +730,7 @@ function AddCar() {
                 type="text"
                 placeholder="Ví dụ: Quận Cầu Giấy, Hà Nội"
                 disabled={loading}
+                value={carDetails.address}
                 onChange={(e) =>
                   setCarDetails({ ...carDetails, address: e.target.value })
                 }
@@ -650,6 +745,7 @@ function AddCar() {
               rows="4"
               placeholder="Mô tả tình trạng xe, tiện nghi đi kèm..."
               disabled={loading}
+              value={carDetails.description}
               onChange={(e) =>
                 setCarDetails({ ...carDetails, description: e.target.value })
               }
@@ -723,6 +819,7 @@ function AddCar() {
                   type="number"
                   placeholder="800000"
                   disabled={loading}
+                  value={price.perDay}
                   onChange={(e) =>
                     setPrice({ ...price, perDay: e.target.value })
                   }
@@ -740,6 +837,7 @@ function AddCar() {
                   type="number"
                   placeholder="100000"
                   disabled={loading}
+                  value={price.overtime}
                   onChange={(e) =>
                     setPrice({ ...price, overtime: e.target.value })
                   }
@@ -752,7 +850,11 @@ function AddCar() {
         </div>
 
         <button type="submit" className="btn-submit" disabled={loading}>
-          {loading ? "⏳ Đang xử lý..." : "Hoàn tất & Đăng ký xe"}
+          {loading
+            ? "⏳ Đang xử lý..."
+            : editMode
+              ? "Hoàn tất & Cập nhật xe"
+              : "Hoàn tất & Đăng ký xe"}
         </button>
       </form>
 

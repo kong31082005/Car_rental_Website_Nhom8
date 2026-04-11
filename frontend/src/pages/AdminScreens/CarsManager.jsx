@@ -1,45 +1,30 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { deleteCar, getMyCars } from "../../services/carsService";
+import { carBrands } from "../../constants/mockdata";
 
 function CarsManager() {
-  // Dữ liệu mẫu (Sau này bạn sẽ gọi API từ Laravel backend)
-  const [cars, setCars] = useState([
-    {
-      id: 1,
-      brand: "Toyota",
-      model: "Vios",
-      year: 2023,
-      plate: "30H-123.45",
-      price: 800000,
-      status: "Sẵn sàng",
-    },
-    {
-      id: 2,
-      brand: "KIA",
-      model: "Sonet",
-      year: 2024,
-      plate: "30K-999.99",
-      price: 900000,
-      status: "Đang thuê",
-    },
-    {
-      id: 3,
-      brand: "Hyundai",
-      model: "Accent",
-      year: 2022,
-      plate: "30E-567.89",
-      price: 750000,
-      status: "Bảo trì",
-    },
-    {
-      id: 4,
-      brand: "Ford",
-      model: "Everest",
-      year: 2024,
-      plate: "30L-444.22",
-      price: 1500000,
-      status: "Sẵn sàng",
-    },
-  ]);
+  const navigate = useNavigate();
+  const [cars, setCars] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchCars = async () => {
+      try {
+        const data = await getMyCars();
+        console.log("CarsManager: dữ liệu trả về từ API /cars/my:", data);
+        setCars(data);
+      } catch (fetchError) {
+        console.error("Lỗi khi lấy danh sách xe:", fetchError);
+        setError(fetchError.message || "Không thể tải dữ liệu xe.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCars();
+  }, []);
 
   const getStatusStyle = (status) => {
     switch (status) {
@@ -47,10 +32,25 @@ function CarsManager() {
         return "status-ready";
       case "Đang thuê":
         return "status-rented";
+      case "Đang dừng":
+        return "status-stopped";
       case "Bảo trì":
         return "status-repair";
       default:
         return "";
+    }
+  };
+
+  const handleDelete = async (id) => {
+    const confirmDelete = window.confirm("Bạn có chắc muốn xóa xe này?");
+    if (!confirmDelete) return;
+
+    try {
+      await deleteCar(id);
+      setCars((prevCars) => prevCars.filter((car) => car.id !== id));
+    } catch (error) {
+      console.error("Xóa xe thất bại:", error);
+      alert(error.message || "Xóa xe thất bại");
     }
   };
 
@@ -112,6 +112,7 @@ function CarsManager() {
         }
         .status-ready { background: #dcfce7; color: #166534; }
         .status-rented { background: #dbeafe; color: #1d4ed8; }
+        .status-stopped { background: #fee2e2; color: #991b1b; }
         .status-repair { background: #fee2e2; color: #991b1b; }
 
         .btn-edit { color: #2563eb; margin-right: 12px; cursor: pointer; border: none; background: none; font-weight: 700; }
@@ -120,7 +121,9 @@ function CarsManager() {
 
       <div className="manager-header">
         <h1 className="manager-title">Quản lý danh sách xe</h1>
-        <button className="btn-add">+ Thêm xe mới</button>
+        <button className="btn-add" onClick={() => navigate("/admin/add-car")}>
+          + Thêm xe mới
+        </button>
       </div>
 
       <div className="action-bar">
@@ -131,16 +134,23 @@ function CarsManager() {
         />
         <select className="search-input" style={{ flex: "0 0 200px" }}>
           <option value="">Tất cả hãng</option>
-          <option value="toyota">Toyota</option>
-          <option value="kia">KIA</option>
+          {carBrands.map((brandData) => (
+            <option key={brandData.brand} value={brandData.brand.toLowerCase()}>
+              {brandData.brand}
+            </option>
+          ))}
         </select>
       </div>
+
+      {loading && <div>Đang tải danh sách xe...</div>}
+      {error && (
+        <div style={{ color: "#dc2626", marginBottom: "16px" }}>{error}</div>
+      )}
 
       <div className="table-card">
         <table className="cars-table">
           <thead>
             <tr>
-              <th>ID</th>
               <th>Thông tin xe</th>
               <th>Biển số</th>
               <th>Giá thuê/Ngày</th>
@@ -151,7 +161,6 @@ function CarsManager() {
           <tbody>
             {cars.map((car) => (
               <tr key={car.id}>
-                <td>#{car.id}</td>
                 <td>
                   <div style={{ fontWeight: 800 }}>
                     {car.brand} {car.model}
@@ -160,18 +169,32 @@ function CarsManager() {
                     Đời {car.year}
                   </div>
                 </td>
-                <td>{car.plate}</td>
-                <td>{car.price.toLocaleString("vi-VN")} đ</td>
+                <td>{car.licensePlate || car.plate}</td>
+                <td>
+                  {(car.pricePerDay || car.price).toLocaleString("vi-VN")} đ
+                </td>
                 <td>
                   <span
-                    className={`status-badge ${getStatusStyle(car.status)}`}
+                    className={`status-badge ${getStatusStyle(
+                      car.isAvailable ? "Sẵn sàng" : "Đang dừng",
+                    )}`}
                   >
-                    {car.status}
+                    {car.isAvailable ? "Sẵn sàng" : "Đang dừng"}
                   </span>
                 </td>
                 <td>
-                  <button className="btn-edit">Sửa</button>
-                  <button className="btn-delete">Xóa</button>
+                  <button
+                    className="btn-edit"
+                    onClick={() => navigate(`/admin/edit-car/${car.id}`)}
+                  >
+                    Sửa
+                  </button>
+                  <button
+                    className="btn-delete"
+                    onClick={() => handleDelete(car.id)}
+                  >
+                    Xóa
+                  </button>
                 </td>
               </tr>
             ))}
