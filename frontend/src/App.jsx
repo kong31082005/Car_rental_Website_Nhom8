@@ -26,6 +26,7 @@ function App() {
           <Route index element={<Dashboard />} />
           <Route path="cars" element={<CarsManager />} />
           <Route path="add-car" element={<AddCar />} />
+          <Route path="edit-car/:id" element={<AddCar />} />
           <Route path="users" element={<UsersManager />} />
           <Route path="orders" element={<BookingManagement />} />
           <Route path="contracts" element={<ContractManager />} />

@@ -1,6 +1,10 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { getMyCars } from "../../services/carsService";
+import { BASE_URL } from "../../constants/config";
 
 function Dashboard() {
+  const navigate = useNavigate();
   const brands = [
     { id: "all", name: "Tất cả", icon: "▦" },
     { id: "toyota", name: "Toyota", icon: "🚗" },
@@ -9,44 +13,8 @@ function Dashboard() {
     { id: "ford", name: "Ford", icon: "🚐" },
   ];
 
-  const cars = [
-    {
-      id: 1,
-      brand: "Toyota",
-      model: "Vios",
-      year: 2023,
-      seats: 5,
-      pricePerDay: 800000,
-      image: "/images/banner-1.jpg",
-    },
-    {
-      id: 2,
-      brand: "KIA",
-      model: "Sonet",
-      year: 2024,
-      seats: 5,
-      pricePerDay: 900000,
-      image: "/images/banner-2.jpg",
-    },
-    {
-      id: 3,
-      brand: "Hyundai",
-      model: "Accent",
-      year: 2022,
-      seats: 5,
-      pricePerDay: 750000,
-      image: "/images/banner-3.jpeg",
-    },
-    {
-      id: 4,
-      brand: "Ford",
-      model: "Everest",
-      year: 2024,
-      seats: 7,
-      pricePerDay: 1500000,
-      image: "/images/banner-1.jpg",
-    },
-  ];
+  const [cars, setCars] = useState([]);
+  const [selectedBrand, setSelectedBrand] = useState("all");
 
   const orders = [
     {
@@ -72,15 +40,19 @@ function Dashboard() {
     },
   ];
 
-  const [selectedBrand, setSelectedBrand] = useState("all");
+  useEffect(() => {
+    const fetchCars = async () => {
+      try {
+        const data = await getMyCars();
+        setCars(data);
+      } catch (error) {
+        console.error("Lỗi khi lấy danh sách xe:", error);
+      }
+    };
+    fetchCars();
+  }, []);
 
-  const filteredCars = useMemo(() => {
-    if (selectedBrand === "all") return cars;
-    const brandName = brands.find((b) => b.id === selectedBrand)?.name;
-    return cars.filter(
-      (car) => car.brand.toLowerCase() === brandName.toLowerCase(),
-    );
-  }, [selectedBrand]);
+  const filteredCars = cars;
 
   const getStatusClass = (status) => {
     if (status === "Chờ duyệt") return "status-pending";
@@ -194,6 +166,12 @@ function Dashboard() {
         .car-body { padding: 16px; }
         .car-title { font-weight: 800; margin-bottom: 8px; }
         .car-price { color: #16a34a; font-weight: 900; margin-top: 10px; }
+        .car-meta { display: flex; align-items: center; gap: 8px; color: #6b7280; font-size: 0.9rem; }
+        .status-indicator { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 12px; font-size: 0.85rem; font-weight: 600; }
+        .status-active { background: #dcfce7; color: #166534; }
+        .status-active::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #16a34a; }
+        .status-inactive { background: #fee2e2; color: #991b1b; }
+        .status-inactive::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #dc2626; }
 
         .orders-table { width: 100%; border-collapse: collapse; }
         .orders-table th { text-align: left; color: #6b7280; padding: 12px; border-bottom: 1px solid #eef2f7; }
@@ -267,18 +245,36 @@ function Dashboard() {
       <div className="section-card">
         <div className="section-head">
           <h2 className="section-title">Xe của tôi</h2>
-          <div className="section-link">+ Thêm xe</div>
+          <div
+            className="section-link"
+            onClick={() => navigate("/admin/add-car")}
+          >
+            + Thêm xe
+          </div>
         </div>
         <div className="car-list">
           {filteredCars.map((car) => (
             <div className="car-card" key={car.id}>
-              <img src={car.image} alt={car.model} className="car-image" />
+              <img
+                src={
+                  car.thumbnail
+                    ? `${BASE_URL}${car.thumbnail}`
+                    : "/images/default-car.jpg"
+                }
+                alt={car.model}
+                className="car-image"
+              />
               <div className="car-body">
                 <div className="car-title">
                   {car.brand} {car.model} • {car.year}
                 </div>
                 <div className="car-meta">
-                  <span>{car.seats} chỗ</span> • <span>Available</span>
+                  <span>{car.seats} chỗ</span> •{" "}
+                  <span
+                    className={`status-indicator ${car.isAvailable ? "status-active" : "status-inactive"}`}
+                  >
+                    {car.isAvailable ? "Đang hoạt động" : "Đang dừng"}
+                  </span>
                 </div>
                 <div className="car-price">
                   {car.pricePerDay.toLocaleString("vi-VN")} / ngày

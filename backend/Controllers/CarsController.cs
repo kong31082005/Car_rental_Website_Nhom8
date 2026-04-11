@@ -68,6 +68,7 @@ public class CarsController : ControllerBase
             c.Brand,
             c.Model,
             c.Year,
+            c.LicensePlate,
             c.Seats,
             c.Address,
             c.Fuel,

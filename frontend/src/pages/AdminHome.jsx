@@ -9,7 +9,6 @@ function AdminHome() {
   const menus = [
     { name: "Dashboard", path: "/admin" },
     { name: "Quản lý xe", path: "/admin/cars" },
-    { name: "Thêm xe", path: "/admin/add-car" },
     { name: "Quản lý người dùng", path: "/admin/users" },
     { name: "Đơn thuê", path: "/admin/orders" },
     { name: "Hợp đồng", path: "/admin/contracts" },
