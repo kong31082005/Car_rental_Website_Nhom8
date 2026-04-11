@@ -3,7 +3,12 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import CustomerHeader from "../components/CustomerHeader.jsx";
 import Footer from "../components/Footer.jsx";
 import RentalDateModal from "../components/RentalDateModal.jsx";
-import { getPublicCarDetail, checkFavorite, toggleFavorite } from "../services/carsService";
+import {
+  getPublicCarDetail,
+  checkFavorite,
+  toggleFavorite,
+} from "../services/carsService";
+import { getPublicVouchers, validateVoucherCode } from "../services/voucherService";
 import toast from "react-hot-toast";
 
 import {
@@ -32,7 +37,6 @@ import {
   CircleDollarSign,
   TicketPercent,
   BadgePercent,
-  Clock3,
 } from "lucide-react";
 
 function CarDetail() {
@@ -51,6 +55,12 @@ function CarDetail() {
   const [showDateModal, setShowDateModal] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
+  const [publicVouchers, setPublicVouchers] = useState([]);
+  const [selectedVoucherId, setSelectedVoucherId] = useState("");
+  const [promoCode, setPromoCode] = useState("");
+  const [promoVoucher, setPromoVoucher] = useState(null);
+  const [promoLoading, setPromoLoading] = useState(false);
+  const [promoMessage, setPromoMessage] = useState("");
 
   const token = localStorage.getItem("token");
 
@@ -59,7 +69,6 @@ function CarDetail() {
       toast.error("Vui lòng đăng nhập để dùng tính năng này ❤️");
       return false;
     }
-
     return true;
   };
 
@@ -161,25 +170,39 @@ function CarDetail() {
       await toggleFavorite(id);
       setIsFavorite((prev) => !prev);
     } catch (err) {
-      console.error(err);
+      console.error("Lỗi toggle favorite:", err);
     } finally {
       setFavoriteLoading(false);
     }
   };
 
   useEffect(() => {
+    const fetchPublicVouchers = async () => {
+      try {
+        const data = await getPublicVouchers();
+        setPublicVouchers(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error("Lỗi lấy voucher công khai:", error);
+        setPublicVouchers([]);
+      }
+    };
+
+    fetchPublicVouchers();
+  }, []);
+
+  useEffect(() => {
     const fetchFavoriteStatus = async () => {
-        try {
+      try {
         const result = await checkFavorite(id);
         setIsFavorite(!!result?.isFavorite);
-        } catch (err) {
+      } catch (err) {
         console.error("Lỗi check favorite:", err);
         setIsFavorite(false);
-        }
+      }
     };
 
     if (id) fetchFavoriteStatus();
-    }, [id]);
+  }, [id]);
 
   useEffect(() => {
     if (queryParams.startDate) setPickupDateTime(queryParams.startDate);
@@ -282,11 +305,12 @@ function CarDetail() {
   const fuelConsumption = car.fuelConsumption || car.FuelConsumption || "";
   const address = car.address || car.Address || "Đang cập nhật";
   const description = car.description || car.Description || "Đang cập nhật mô tả.";
-  const pricePerDay = car.pricePerDay || car.PricePerDay || 0;
   const owner = car.owner || car.Owner || null;
+  const pricePerDay = car?.pricePerDay || car?.PricePerDay || 0;
 
   const title = `${brand} ${model} ${year}`.trim();
-  const mainImage = activeImage || displayImages[0]?.url || "/images/car-placeholder.jpg";
+  const mainImage =
+    activeImage || displayImages[0]?.url || "/images/car-placeholder.jpg";
 
   const featureItems = [
     { icon: Navigation, label: "Bản đồ" },
@@ -300,6 +324,111 @@ function CarDetail() {
     { icon: Monitor, label: "Màn hình DVD" },
     { icon: Disc3, label: "ETC" },
   ];
+
+  const calculateRentalDays = () => {
+    if (!pickupDateTime || !returnDateTime) return 1;
+
+    const start = new Date(pickupDateTime);
+    const end = new Date(returnDateTime);
+    const diffMs = end.getTime() - start.getTime();
+    const diffDays = diffMs / (1000 * 60 * 60 * 24);
+
+    return diffDays > 0 ? Math.ceil(diffDays) : 1;
+  };
+
+  const selectedVoucher = publicVouchers.find(
+    (item) => String(item.id) === String(selectedVoucherId)
+  );
+
+  const calculateVoucherDiscount = () => {
+    if (!selectedVoucher) return 0;
+
+    const days = calculateRentalDays();
+    const subtotal = Number(pricePerDay || 0) * days;
+
+    const minOrderValue = Number(selectedVoucher.minOrderValue || 0);
+    if (minOrderValue > 0 && subtotal < minOrderValue) return 0;
+
+    const discountType = selectedVoucher.discountType;
+    const discountValue = Number(selectedVoucher.discountValue || 0);
+    const maxDiscountValue = Number(selectedVoucher.maxDiscountValue || 0);
+
+    let discount = 0;
+
+    if (discountType === "Percentage" || discountType === 1) {
+      discount = (subtotal * discountValue) / 100;
+      if (maxDiscountValue > 0) {
+        discount = Math.min(discount, maxDiscountValue);
+      }
+    } else {
+      discount = discountValue;
+    }
+
+    return Math.max(0, Math.round(discount));
+  };
+
+  const calculatePromoCodeDiscount = () => {
+    if (!promoVoucher) return 0;
+
+    const discountType = promoVoucher.discountType;
+    const discountValue = Number(promoVoucher.discountValue || 0);
+    const maxDiscountValue = Number(promoVoucher.maxDiscountValue || 0);
+
+    let discount = 0;
+
+    if (discountType === "Percentage" || discountType === 1) {
+      discount = (rentalSubtotal * discountValue) / 100;
+
+      if (maxDiscountValue > 0) {
+        discount = Math.min(discount, maxDiscountValue);
+      }
+    } else {
+      discount = discountValue;
+    }
+
+    return Math.max(0, Math.round(discount));
+  };
+
+  const rentalDays = calculateRentalDays();
+  const rentalSubtotal = Number(pricePerDay || 0) * rentalDays;
+  const voucherDiscount = calculateVoucherDiscount();
+  const promoCodeDiscount = calculatePromoCodeDiscount();
+  const finalTotal = Math.max(
+    0,
+    rentalSubtotal - voucherDiscount - promoCodeDiscount
+  );
+
+  const handleApplyPromoCode = async () => {
+    if (!promoCode.trim()) {
+      setPromoMessage("Vui lòng nhập mã khuyến mãi.");
+      setPromoVoucher(null);
+      return;
+    }
+
+    try {
+      setPromoLoading(true);
+      setPromoMessage("");
+
+      const result = await validateVoucherCode({
+        code: promoCode,
+        subtotal: rentalSubtotal,
+      });
+
+      if (!result?.isValid) {
+        setPromoVoucher(null);
+        setPromoMessage(result?.message || "Mã không hợp lệ.");
+        return;
+      }
+
+      setPromoVoucher(result.voucher);
+      setPromoMessage(result.message || "Áp dụng mã thành công.");
+    } catch (error) {
+      setPromoVoucher(null);
+      setPromoMessage(error.message);
+    } finally {
+      setPromoLoading(false);
+    }
+  };
 
   return (
     <>
@@ -484,13 +613,13 @@ function CarDetail() {
         }
 
         .heart-btn svg {
-            color: #9ca3af;
-            fill: transparent;
+          color: #9ca3af;
+          fill: transparent;
         }
 
         .heart-btn.active svg {
-            color: #ec4899;
-            fill: #ec4899;
+          color: #ec4899;
+          fill: #ec4899;
         }
 
         .car-badges {
@@ -648,45 +777,6 @@ function CarDetail() {
           flex-shrink: 0;
         }
 
-        .owner-card {
-          display: flex;
-          align-items: center;
-          gap: 16px;
-        }
-
-        .owner-avatar {
-          width: 62px;
-          height: 62px;
-          border-radius: 50%;
-          background: linear-gradient(135deg, #16a34a, #4ade80);
-          color: #fff;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-weight: 800;
-          font-size: 1.2rem;
-          flex-shrink: 0;
-        }
-
-        .owner-name {
-          font-size: 1.05rem;
-          font-weight: 800;
-          color: #111827;
-          margin-bottom: 6px;
-        }
-
-        .owner-sub {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          color: #6b7280;
-          font-size: 0.95rem;
-        }
-
-        .owner-sub svg {
-          color: #16a34a;
-        }
-
         .insurance-side-box {
           border: 1px solid #bbf7d0;
           background: #f0fdf4;
@@ -785,30 +875,6 @@ function CarDetail() {
           line-height: 1.5;
         }
 
-        .booking-hour-note {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-          border: 1px solid #d1d5db;
-          border-radius: 12px;
-          background: #fff;
-          color: #4b5563;
-          font-size: 0.92rem;
-          padding: 12px 14px;
-          margin-bottom: 14px;
-        }
-
-        .booking-hour-note svg {
-          color: #111827;
-        }
-
-        .booking-hour-note a {
-          color: #22c55e;
-          font-weight: 700;
-          text-decoration: none;
-        }
-
         .booking-block-title {
           font-size: 1rem;
           font-weight: 800;
@@ -834,21 +900,10 @@ function CarDetail() {
           background: #f0fdf4;
         }
 
-        .pickup-option.disabled {
-          background: #ececec;
-          color: #9ca3af;
-          cursor: not-allowed;
-          border-color: #e5e7eb;
-        }
-
         .pickup-option-top {
           font-weight: 700;
           color: #374151;
           margin-bottom: 4px;
-        }
-
-        .pickup-option.active .pickup-option-top {
-          color: #4b5563;
         }
 
         .pickup-option-address {
@@ -897,6 +952,30 @@ function CarDetail() {
           padding: 0 14px;
           font-size: 0.96rem;
           background: #fff;
+        }
+
+        .booking-field {
+          margin-bottom: 14px;
+        }
+
+        .promo-box {
+          margin-bottom: 14px;
+          padding: 14px 16px;
+          border-radius: 14px;
+          background: #fff7ed;
+          border: 1px solid #fdba74;
+        }
+
+        .promo-title {
+          font-weight: 800;
+          color: #c2410c;
+          margin-bottom: 6px;
+        }
+
+        .promo-text {
+          color: #9a3412;
+          font-size: 0.94rem;
+          line-height: 1.6;
         }
 
         .price-breakdown {
@@ -951,14 +1030,6 @@ function CarDetail() {
           color: #ea580c;
         }
 
-        .promo-subtext {
-          font-size: 0.9rem;
-          color: #6b7280;
-          margin-top: -4px;
-          margin-bottom: 10px;
-          padding-left: 24px;
-        }
-
         .booking-total.final {
           border-top: none;
           padding-top: 16px;
@@ -1002,6 +1073,241 @@ function CarDetail() {
           opacity: 0.95;
         }
 
+        .rental-modal-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.48);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 9999;
+        }
+
+        .rental-modal {
+          width: min(760px, calc(100% - 24px));
+          background: #fff;
+          border-radius: 24px;
+          overflow: hidden;
+        }
+
+        .rental-modal-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 22px 24px;
+          border-bottom: 1px solid #e5e7eb;
+        }
+
+        .rental-modal-header h3 {
+          margin: 0;
+          font-size: 1.9rem;
+          font-weight: 800;
+        }
+
+        .rental-close-btn {
+          width: 42px;
+          height: 42px;
+          border-radius: 50%;
+          border: 1px solid #e5e7eb;
+          background: #fff;
+          cursor: pointer;
+        }
+
+        .rental-modal-body {
+          padding: 24px;
+        }
+
+        .rental-mode-title {
+          font-size: 1.2rem;
+          font-weight: 800;
+          color: #111827;
+          margin-bottom: 22px;
+          padding-bottom: 12px;
+          border-bottom: 3px solid #5bd48a;
+          width: fit-content;
+        }
+
+        .rental-form-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 18px;
+        }
+
+        .rental-field label {
+          display: block;
+          font-weight: 700;
+          margin-bottom: 8px;
+          color: #374151;
+        }
+
+        .rental-field input {
+          width: 100%;
+          height: 50px;
+          border-radius: 14px;
+          border: 1px solid #d1d5db;
+          padding: 0 14px;
+          font-size: 1rem;
+        }
+
+        .rental-error-box {
+          margin-top: 18px;
+          display: flex;
+          align-items: flex-start;
+          gap: 14px;
+          padding: 16px;
+          border-radius: 14px;
+          background: #fff7ed;
+          border: 1px solid #fed7aa;
+        }
+
+        .rental-error-box p {
+          margin: 0;
+          color: #9a3412;
+          font-weight: 600;
+          line-height: 1.6;
+        }
+
+        .rental-modal-footer {
+          padding: 20px 24px 24px;
+          display: flex;
+          justify-content: flex-end;
+        }
+
+        .rental-confirm-btn {
+          min-width: 140px;
+          height: 48px;
+          border: none;
+          border-radius: 14px;
+          background: #5bd48a;
+          color: #fff;
+          font-weight: 800;
+          cursor: pointer;
+        }
+
+        .owner-panel {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 28px;
+          margin-bottom: 18px;
+        }
+
+        .owner-main {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          min-width: 0;
+        }
+
+        .owner-avatar-image {
+          width: 74px;
+          height: 74px;
+          border-radius: 50%;
+          overflow: hidden;
+          flex-shrink: 0;
+        }
+
+        .owner-avatar-image img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
+        }
+
+        .owner-avatar-fallback {
+          width: 100%;
+          height: 100%;
+          border-radius: 50%;
+          background: linear-gradient(135deg, #16a34a, #4ade80);
+          color: #fff;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 800;
+          font-size: 1.3rem;
+        }
+
+        .owner-main-info {
+          min-width: 0;
+        }
+
+        .owner-name {
+          font-size: 1.05rem;
+          font-weight: 800;
+          color: #111827;
+          margin-bottom: 8px;
+        }
+
+        .owner-meta-line {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          flex-wrap: wrap;
+        }
+
+        .owner-meta-item {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          color: #4b5563;
+          font-size: 0.96rem;
+          font-weight: 600;
+        }
+
+        .owner-rating svg {
+          color: #f59e0b;
+          fill: #f59e0b;
+        }
+
+        .owner-trips svg {
+          color: #22c55e;
+        }
+
+        .owner-stats {
+          display: flex;
+          align-items: flex-start;
+          gap: 42px;
+          flex-shrink: 0;
+        }
+
+        .owner-stat {
+          text-align: center;
+          min-width: 110px;
+        }
+
+        .owner-stat-label {
+          color: #9ca3af;
+          font-size: 0.98rem;
+          margin-bottom: 8px;
+        }
+
+        .owner-stat-value {
+          color: #111827;
+          font-size: 1.1rem;
+          font-weight: 800;
+        }
+
+        .owner-highlight-box {
+          display: flex;
+          align-items: flex-start;
+          gap: 12px;
+          background: #eef5fd;
+          border-radius: 12px;
+          padding: 14px 16px;
+        }
+
+        .owner-highlight-icon {
+          font-size: 1.2rem;
+          line-height: 1.2;
+          flex-shrink: 0;
+        }
+
+        .owner-highlight-text {
+          color: #374151;
+          line-height: 1.7;
+          font-size: 0.97rem;
+        }
+
         @media (max-width: 1199.98px) {
           .detail-content-row {
             grid-template-columns: 1fr;
@@ -1025,6 +1331,23 @@ function CarDetail() {
 
           .feature-grid {
             grid-template-columns: repeat(2, 1fr);
+          }
+        }
+
+        @media (max-width: 991.98px) {
+          .owner-panel {
+            flex-direction: column;
+            align-items: flex-start;
+          }
+
+          .owner-stats {
+            gap: 24px;
+            flex-wrap: wrap;
+          }
+
+          .owner-stat {
+            text-align: left;
+            min-width: unset;
           }
         }
 
@@ -1067,265 +1390,11 @@ function CarDetail() {
             border-left: none;
             border-top: 1px solid #d1d5db;
           }
+
+          .rental-form-grid {
+            grid-template-columns: 1fr;
+          }
         }
-        
-        .rental-modal-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.48);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
-            }
-
-            .rental-modal {
-            width: min(760px, calc(100% - 24px));
-            background: #fff;
-            border-radius: 24px;
-            overflow: hidden;
-            }
-
-            .rental-modal-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 22px 24px;
-            border-bottom: 1px solid #e5e7eb;
-            }
-
-            .rental-modal-header h3 {
-            margin: 0;
-            font-size: 1.9rem;
-            font-weight: 800;
-            }
-
-            .rental-close-btn {
-            width: 42px;
-            height: 42px;
-            border-radius: 50%;
-            border: 1px solid #e5e7eb;
-            background: #fff;
-            cursor: pointer;
-            }
-
-            .rental-modal-body {
-            padding: 24px;
-            }
-
-            .rental-mode-title {
-            font-size: 1.2rem;
-            font-weight: 800;
-            color: #111827;
-            margin-bottom: 22px;
-            padding-bottom: 12px;
-            border-bottom: 3px solid #5bd48a;
-            width: fit-content;
-            }
-
-            .rental-form-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 18px;
-            }
-
-            .rental-field label {
-            display: block;
-            font-weight: 700;
-            margin-bottom: 8px;
-            color: #374151;
-            }
-
-            .rental-field input {
-            width: 100%;
-            height: 50px;
-            border-radius: 14px;
-            border: 1px solid #d1d5db;
-            padding: 0 14px;
-            font-size: 1rem;
-            }
-
-            .rental-error-box {
-            margin-top: 18px;
-            display: flex;
-            align-items: flex-start;
-            gap: 14px;
-            padding: 16px;
-            border-radius: 14px;
-            background: #fff7ed;
-            border: 1px solid #fed7aa;
-            }
-
-            .rental-error-box p {
-            margin: 0;
-            color: #9a3412;
-            font-weight: 600;
-            line-height: 1.6;
-            }
-
-            .rental-modal-footer {
-            padding: 20px 24px 24px;
-            display: flex;
-            justify-content: flex-end;
-            }
-
-            .rental-confirm-btn {
-            min-width: 140px;
-            height: 48px;
-            border: none;
-            border-radius: 14px;
-            background: #5bd48a;
-            color: #fff;
-            font-weight: 800;
-            cursor: pointer;
-            }
-
-            @media (max-width: 768px) {
-            .rental-form-grid {
-                grid-template-columns: 1fr;
-            }
-            }
-
-            .owner-panel {
-                display: flex;
-                align-items: flex-start;
-                justify-content: space-between;
-                gap: 28px;
-                margin-bottom: 18px;
-                }
-
-                .owner-main {
-                display: flex;
-                align-items: center;
-                gap: 16px;
-                min-width: 0;
-                }
-
-                .owner-avatar-image {
-                width: 74px;
-                height: 74px;
-                border-radius: 50%;
-                overflow: hidden;
-                flex-shrink: 0;
-                }
-
-                .owner-avatar-image img {
-                width: 100%;
-                height: 100%;
-                object-fit: cover;
-                display: block;
-                }
-
-                .owner-avatar-fallback {
-                width: 100%;
-                height: 100%;
-                border-radius: 50%;
-                background: linear-gradient(135deg, #16a34a, #4ade80);
-                color: #fff;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-weight: 800;
-                font-size: 1.3rem;
-                }
-
-                .owner-main-info {
-                min-width: 0;
-                }
-
-                .owner-name {
-                font-size: 1.05rem;
-                font-weight: 800;
-                color: #111827;
-                margin-bottom: 8px;
-                }
-
-                .owner-meta-line {
-                display: flex;
-                align-items: center;
-                gap: 14px;
-                flex-wrap: wrap;
-                }
-
-                .owner-meta-item {
-                display: inline-flex;
-                align-items: center;
-                gap: 6px;
-                color: #4b5563;
-                font-size: 0.96rem;
-                font-weight: 600;
-                }
-
-                .owner-rating svg {
-                color: #f59e0b;
-                fill: #f59e0b;
-                }
-
-                .owner-trips svg {
-                color: #22c55e;
-                }
-
-                .owner-stats {
-                display: flex;
-                align-items: flex-start;
-                gap: 42px;
-                flex-shrink: 0;
-                }
-
-                .owner-stat {
-                text-align: center;
-                min-width: 110px;
-                }
-
-                .owner-stat-label {
-                color: #9ca3af;
-                font-size: 0.98rem;
-                margin-bottom: 8px;
-                }
-
-                .owner-stat-value {
-                color: #111827;
-                font-size: 1.1rem;
-                font-weight: 800;
-                }
-
-                .owner-highlight-box {
-                display: flex;
-                align-items: flex-start;
-                gap: 12px;
-                background: #eef5fd;
-                border-radius: 12px;
-                padding: 14px 16px;
-                }
-
-                .owner-highlight-icon {
-                font-size: 1.2rem;
-                line-height: 1.2;
-                flex-shrink: 0;
-                }
-
-                .owner-highlight-text {
-                color: #374151;
-                line-height: 1.7;
-                font-size: 0.97rem;
-                }
-
-                @media (max-width: 991.98px) {
-                .owner-panel {
-                    flex-direction: column;
-                    align-items: flex-start;
-                }
-
-                .owner-stats {
-                    gap: 24px;
-                    flex-wrap: wrap;
-                }
-
-                .owner-stat {
-                    text-align: left;
-                    min-width: unset;
-                }
-                }
       `}</style>
 
       <div className="detail-page">
@@ -1401,9 +1470,9 @@ function CarDetail() {
                     type="button"
                     onClick={handleToggleFavorite}
                     disabled={favoriteLoading}
-                    >
+                  >
                     <Heart size={20} />
-                    </button>
+                  </button>
                 </div>
               </div>
 
@@ -1534,64 +1603,64 @@ function CarDetail() {
                 <h2 className="detail-section-title">Chủ xe</h2>
 
                 <div className="owner-panel">
-                    <div className="owner-main">
+                  <div className="owner-main">
                     <div className="owner-avatar-image">
-                        {owner?.avatar || owner?.Avatar ? (
+                      {owner?.avatar || owner?.Avatar ? (
                         <img
-                            src={owner?.avatar || owner?.Avatar}
-                            alt={owner?.fullName || owner?.FullName || "Chủ xe"}
+                          src={owner?.avatar || owner?.Avatar}
+                          alt={owner?.fullName || owner?.FullName || "Chủ xe"}
                         />
-                        ) : (
+                      ) : (
                         <div className="owner-avatar-fallback">
-                            {(owner?.fullName || owner?.FullName || "C").charAt(0).toUpperCase()}
+                          {(owner?.fullName || owner?.FullName || "C").charAt(0).toUpperCase()}
                         </div>
-                        )}
+                      )}
                     </div>
 
                     <div className="owner-main-info">
-                        <div className="owner-name">
+                      <div className="owner-name">
                         {(owner?.fullName || owner?.FullName || "Chủ xe").toUpperCase()}
-                        </div>
+                      </div>
 
-                        <div className="owner-meta-line">
+                      <div className="owner-meta-line">
                         <span className="owner-meta-item owner-rating">
-                            <Star size={15} fill="currentColor" />
-                            5.0
+                          <Star size={15} fill="currentColor" />
+                          5.0
                         </span>
 
                         <span className="owner-meta-item owner-trips">
-                            <CarFront size={15} />
-                            43 chuyến
+                          <CarFront size={15} />
+                          43 chuyến
                         </span>
-                        </div>
+                      </div>
                     </div>
-                    </div>
+                  </div>
 
-                    <div className="owner-stats">
+                  <div className="owner-stats">
                     <div className="owner-stat">
-                        <div className="owner-stat-label">Tỉ lệ phản hồi</div>
-                        <div className="owner-stat-value">100%</div>
-                    </div>
-
-                    <div className="owner-stat">
-                        <div className="owner-stat-label">Phản hồi trong</div>
-                        <div className="owner-stat-value">5 phút</div>
+                      <div className="owner-stat-label">Tỉ lệ phản hồi</div>
+                      <div className="owner-stat-value">100%</div>
                     </div>
 
                     <div className="owner-stat">
-                        <div className="owner-stat-label">Tỉ lệ đồng ý</div>
-                        <div className="owner-stat-value">100%</div>
+                      <div className="owner-stat-label">Phản hồi trong</div>
+                      <div className="owner-stat-value">5 phút</div>
                     </div>
+
+                    <div className="owner-stat">
+                      <div className="owner-stat-label">Tỉ lệ đồng ý</div>
+                      <div className="owner-stat-value">100%</div>
                     </div>
+                  </div>
                 </div>
 
                 <div className="owner-highlight-box">
-                    <div className="owner-highlight-icon">👑</div>
-                    <div className="owner-highlight-text">
+                  <div className="owner-highlight-icon">👑</div>
+                  <div className="owner-highlight-text">
                     Chủ xe 5★ có thời gian phản hồi nhanh chóng, tỉ lệ đồng ý cao, mức giá cạnh tranh & dịch vụ nhận được nhiều đánh giá tốt từ khách hàng.
-                    </div>
+                  </div>
                 </div>
-                </div>
+              </div>
             </div>
 
             <div className="detail-right">
@@ -1630,12 +1699,6 @@ function CarDetail() {
                       {formatDisplayDateTime(returnDateTime)}
                     </div>
                   </div>
-                </div>
-
-                <div className="booking-hour-note">
-                  <Clock3 size={16} />
-                  <span>Chủ xe hỗ trợ thuê xe theo giờ.</span>
-                  <a href="#">Tìm hiểu thêm</a>
                 </div>
 
                 <div className="booking-block-title">Địa điểm giao nhận xe</div>
@@ -1678,6 +1741,80 @@ function CarDetail() {
                   </div>
                 )}
 
+                <div className="booking-block-title">Chương trình khuyến mãi</div>
+
+                <div className="booking-field">
+                  <select
+                    className="booking-input"
+                    value={selectedVoucherId}
+                    onChange={(e) => setSelectedVoucherId(e.target.value)}
+                  >
+                    <option value="">Không áp dụng</option>
+                    {publicVouchers.map((voucher) => (
+                      <option key={voucher.id} value={voucher.id}>
+                        {voucher.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="booking-block-title">Mã khuyến mãi</div>
+
+                <div className="booking-field" style={{ display: "flex", gap: "10px" }}>
+                  <input
+                    className="booking-input"
+                    type="text"
+                    placeholder="Nhập mã khuyến mãi"
+                    value={promoCode}
+                    onChange={(e) => setPromoCode(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleApplyPromoCode}
+                    disabled={promoLoading}
+                    style={{
+                      border: "none",
+                      borderRadius: "14px",
+                      padding: "0 18px",
+                      background: "#16a34a",
+                      color: "#fff",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      minWidth: "110px",
+                    }}
+                  >
+                    {promoLoading ? "Đang..." : "Áp dụng"}
+                  </button>
+                </div>
+
+                {promoMessage && (
+                  <div
+                    style={{
+                      marginBottom: "14px",
+                      fontSize: "0.92rem",
+                      fontWeight: 600,
+                      color: promoVoucher ? "#16a34a" : "#dc2626",
+                    }}
+                  >
+                    {promoMessage}
+                  </div>
+                )}
+
+                {selectedVoucher && (
+                  <div className="promo-box">
+                    <div className="promo-title">{selectedVoucher.title}</div>
+                    <div className="promo-text">
+                      {selectedVoucher.discountType === "Percentage" ||
+                      selectedVoucher.discountType === 1
+                        ? `Giảm ${selectedVoucher.discountValue}%`
+                        : `Giảm ${Number(selectedVoucher.discountValue).toLocaleString("vi-VN")}đ`}
+                      {selectedVoucher.minOrderValue
+                        ? ` • Đơn tối thiểu ${Number(selectedVoucher.minOrderValue).toLocaleString("vi-VN")}đ`
+                        : ""}
+                    </div>
+                  </div>
+                )}
+
                 <div className="price-breakdown">
                   <div className="price-row">
                     <div className="price-left">
@@ -1689,17 +1826,16 @@ function CarDetail() {
 
                   <div className="price-row">
                     <div className="price-left">
-                      <span>Bảo hiểm thuê xe</span>
-                      <CircleHelp size={15} />
+                      <span>Số ngày thuê</span>
                     </div>
-                    <strong>64.975đ/ngày</strong>
+                    <strong>{rentalDays} ngày</strong>
                   </div>
 
                   <div className="price-row">
                     <div className="price-left">
-                      <span>Tổng cộng</span>
+                      <span>Tạm tính</span>
                     </div>
-                    <strong>725.075đ x 1 ngày</strong>
+                    <strong>{formatPrice(rentalSubtotal)}</strong>
                   </div>
 
                   <div className="price-row discount promo-row">
@@ -1707,23 +1843,23 @@ function CarDetail() {
                       <BadgePercent size={16} />
                       <span>Chương trình giảm giá</span>
                     </div>
-                    <strong>-120.000đ</strong>
+                    <strong>
+                      {voucherDiscount > 0 ? `- ${formatPrice(voucherDiscount)}` : "0đ"}
+                    </strong>
                   </div>
-
-                  <div className="promo-subtext">Giảm 120K trên đơn giá</div>
 
                   <div className="price-row promo-row">
                     <div className="promo-line-left">
                       <TicketPercent size={16} />
                       <span>Mã khuyến mãi</span>
                     </div>
-                    <strong>Đã áp dụng</strong>
+                    <strong>{promoCodeDiscount > 0 ? `- ${formatPrice(promoCodeDiscount)}` : "0đ"}</strong>
                   </div>
                 </div>
 
                 <div className="booking-total final">
                   <div className="booking-total-label">Thành tiền</div>
-                  <div className="booking-total-value">635.075đ</div>
+                  <div className="booking-total-value">{formatPrice(finalTotal)}</div>
                 </div>
 
                 <button className="booking-btn">

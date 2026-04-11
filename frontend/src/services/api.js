@@ -7,7 +7,7 @@ const api = axios.create({
   },
 });
 
-// Interceptor để thêm token vào headers (tương tự authHeaders từ mobile)
+// Gắn token vào request
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
   if (token) {
@@ -15,5 +15,28 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+// Tự xử lý khi token hết hạn / không hợp lệ
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem("token");
+
+      const publicPaths = ["/", "/home", "/login", "/register", "/search"];
+      const currentPath = window.location.pathname;
+
+      const isCarDetail = currentPath.startsWith("/cars/");
+
+      if (!publicPaths.includes(currentPath) && !isCarDetail) {
+        window.location.href = "/home";
+      } else {
+        window.dispatchEvent(new Event("auth-changed"));
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
 
 export default api;

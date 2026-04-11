@@ -86,8 +86,6 @@ sequenceDiagram
         Frontend-->>User: Update UI
     end
 
----
-
 ```
 
 ## 3. 📊 Yêu cầu dữ liệu (Data Requirements)

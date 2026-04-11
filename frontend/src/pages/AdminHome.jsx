@@ -14,11 +14,20 @@ function AdminHome() {
     { name: "Đơn thuê", path: "/admin/orders" },
     { name: "Hợp đồng", path: "/admin/contracts" },
     { name: "Voucher", path: "/admin/vouchers" },
-    { name: "Tin tức", path: "/admin/news" },
+    { name: "Tin tức", path: "/admin/community" },
     { name: "Cài đặt", path: "/admin/settings" },
+    { name: "Đăng xuất", path: "logout" },
   ];
 
   const handleMenuClick = (path) => {
+    if (path === "logout") {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+
+      navigate("/login");
+      return;
+    }
+
     navigate(path);
   };
 

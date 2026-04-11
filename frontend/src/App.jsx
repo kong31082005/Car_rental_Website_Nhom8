@@ -11,12 +11,15 @@ import UsersManager from "./pages/AdminScreens/UsersManager.jsx";
 import BookingManagement from "./pages/AdminScreens/BookingManager.jsx";
 import ContractManager from "./pages/AdminScreens/ContractManager.jsx";
 import VoucherManager from "./pages/AdminScreens/VoucherManager.jsx";
-import NewsManagement from "./pages/AdminScreens/NewsManager.jsx";
 import AdminSettings from "./pages/AdminScreens/Setting.jsx";
 import SearchResults from "./pages/SearchResults.jsx";
 import CarDetail from "./pages/CarDetail.jsx";
 import FavoriteCars from "./pages/FavoriteCars.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
+import Rewards from "./pages/Rewards.jsx";
+import CommunityFeed from "./pages/CommunityFeed.jsx";
+import CreatePost from "./pages/CreatePost.jsx";
+import AdminCommunityFeed from "./pages/AdminScreens/AdminCommunityFeed.jsx";
 
 function App() {
   return (
@@ -40,6 +43,9 @@ function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/search" element={<SearchResults />} />
         <Route path="/cars/:id" element={<CarDetail />} />
+        <Route path="/rewards" element={<Rewards />} />
+        <Route path="/community" element={<CommunityFeed />} />
+        <Route path="/community/create" element={<CreatePost />} />
         <Route
           path="/favorites"
           element={
@@ -56,7 +62,8 @@ function App() {
           <Route path="orders" element={<BookingManagement />} />
           <Route path="contracts" element={<ContractManager />} />
           <Route path="vouchers" element={<VoucherManager />} />
-          <Route path="news" element={<NewsManagement />} />
+          <Route path="community" element={<AdminCommunityFeed />} />
+          <Route path="/admin/community/create" element={<CreatePost />} />
           <Route path="settings" element={<AdminSettings />} />
         </Route>
       </Routes>

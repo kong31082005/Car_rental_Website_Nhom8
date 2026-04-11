@@ -2,14 +2,28 @@ import avatarImage from "../assets/avatar.png";
 import logoImage from "../assets/logo.png";
 import { Link, useNavigate } from "react-router-dom";
 import { Bell, Heart, MessageCircle } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 function CustomerHeader() {
   const navigate = useNavigate();
   const [showDropdown, setShowDropdown] = useState(false);
 
   const token = localStorage.getItem("token");
-  const isLoggedIn = !!token;
+  const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem("token"));
+
+  useEffect(() => {
+    const syncAuth = () => {
+      setIsLoggedIn(!!localStorage.getItem("token"));
+    };
+
+    window.addEventListener("auth-changed", syncAuth);
+    window.addEventListener("storage", syncAuth);
+
+    return () => {
+      window.removeEventListener("auth-changed", syncAuth);
+      window.removeEventListener("storage", syncAuth);
+    };
+  }, []);
 
   const requireLogin = (callback) => {
     if (!isLoggedIn) {
@@ -22,10 +36,10 @@ function CustomerHeader() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("token"); // xoá token
+    localStorage.removeItem("token");
+    window.dispatchEvent(new Event("auth-changed"));
     setShowDropdown(false);
-    navigate("/home"); // về home
-    window.location.reload(); // reload để header update lại
+    navigate("/home");
   };
 
   return (
@@ -279,7 +293,7 @@ function CustomerHeader() {
                 Về Kongcars
               </a>
 
-              <a href="#" className="nav-link-custom">
+              <a href="/community" className="nav-link-custom">
                 Tin tức
               </a>
 
@@ -298,7 +312,7 @@ function CustomerHeader() {
                     Chuyến của tôi
                   </a>
 
-                  <a href="#" className="nav-link-custom">
+                  <a href="/rewards" className="nav-link-custom">
                     Quà tặng
                   </a>
 

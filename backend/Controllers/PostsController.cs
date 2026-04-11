@@ -10,26 +10,41 @@ namespace RentalCarBE.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
 public class PostsController : ControllerBase
 {
     private readonly AppDbContext _db;
     public PostsController(AppDbContext db) => _db = db;
 
-    private Guid GetUserId()
+    private Guid? TryGetUserId()
     {
         var idStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
-        if (string.IsNullOrWhiteSpace(idStr))
+        if (string.IsNullOrWhiteSpace(idStr)) return null;
+        return Guid.TryParse(idStr, out var id) ? id : null;
+    }
+
+    private Guid GetUserId()
+    {
+        var userId = TryGetUserId();
+        if (userId == null)
             throw new UnauthorizedAccessException("Missing user id claim.");
-        return Guid.Parse(idStr);
+        return userId.Value;
+    }
+
+    private bool IsOwnerRole()
+    {
+        return User.IsInRole("Owner") || User.Claims.Any(c =>
+            (c.Type == ClaimTypes.Role || c.Type == "role") && c.Value == "Owner");
     }
 
     // GET /api/posts?skip=0&take=10
+    [AllowAnonymous]
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<PostListItemDto>>> GetPosts([FromQuery] int skip = 0, [FromQuery] int take = 10)
+    public async Task<IActionResult> GetPosts([FromQuery] int skip = 0, [FromQuery] int take = 10)
     {
         take = Math.Clamp(take, 1, 50);
-        var userId = GetUserId();
+
+        var userId = TryGetUserId();
+        var isOwner = IsOwnerRole();
         var baseUrl = $"{Request.Scheme}://{Request.Host}";
 
         var posts = await _db.Posts
@@ -41,6 +56,7 @@ public class PostsController : ControllerBase
             .Select(p => new
             {
                 p.Id,
+                p.AuthorId,
                 UserName = p.Author.FullName,
                 UserAvatar = "https://i.pravatar.cc/100?u=" + p.AuthorId,
                 p.CreatedAt,
@@ -48,26 +64,29 @@ public class PostsController : ControllerBase
                 p.ImageUrl,
                 LikedCount = _db.PostLikes.Count(l => l.PostId == p.Id),
                 CommentCount = _db.PostComments.Count(c => c.PostId == p.Id),
-                IsLiked = _db.PostLikes.Any(l => l.PostId == p.Id && l.UserId == userId)
+                IsLiked = userId != null && _db.PostLikes.Any(l => l.PostId == p.Id && l.UserId == userId.Value)
             })
             .ToListAsync();
 
-        var result = posts.Select(p => new PostListItemDto(
+        var result = posts.Select(p => new
+        {
             p.Id,
             p.UserName,
             p.UserAvatar,
             p.CreatedAt,
             p.Content,
-            string.IsNullOrWhiteSpace(p.ImageUrl) ? null : $"{baseUrl}{p.ImageUrl}",
+            ImageUrl = string.IsNullOrWhiteSpace(p.ImageUrl) ? null : $"{baseUrl}{p.ImageUrl}",
             p.LikedCount,
             p.CommentCount,
-            p.IsLiked
-        ));
+            p.IsLiked,
+            CanDelete = userId != null && (p.AuthorId == userId.Value || isOwner)
+        });
 
         return Ok(result);
     }
 
     // POST /api/posts
+    [Authorize]
     [HttpPost]
     public async Task<IActionResult> CreatePost([FromBody] CreatePostDto dto)
     {
@@ -95,15 +114,17 @@ public class PostsController : ControllerBase
     }
 
     // DELETE /api/posts/{id}
+    [Authorize]
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> DeletePost(Guid id)
     {
         var userId = GetUserId();
+        var isOwner = IsOwnerRole();
 
         var post = await _db.Posts.FirstOrDefaultAsync(p => p.Id == id);
-        if (post == null) return NotFound(new { message = "Post không tồn tại." });
+        if (post == null) return NotFound(new { message = "Bài viết không tồn tại." });
 
-        if (post.AuthorId != userId)
+        if (post.AuthorId != userId && !isOwner)
             return StatusCode(StatusCodes.Status403Forbidden, new { message = "Bạn không có quyền xoá bài viết này." });
 
         var likes = await _db.PostLikes.Where(x => x.PostId == id).ToListAsync();
@@ -118,13 +139,14 @@ public class PostsController : ControllerBase
     }
 
     // POST /api/posts/{id}/like
+    [Authorize]
     [HttpPost("{id:guid}/like")]
     public async Task<IActionResult> ToggleLike(Guid id)
     {
         var userId = GetUserId();
 
         var postExists = await _db.Posts.AnyAsync(p => p.Id == id);
-        if (!postExists) return NotFound(new { message = "Post không tồn tại." });
+        if (!postExists) return NotFound(new { message = "Bài viết không tồn tại." });
 
         var like = await _db.PostLikes
             .FirstOrDefaultAsync(x => x.PostId == id && x.UserId == userId);
@@ -149,30 +171,37 @@ public class PostsController : ControllerBase
     }
 
     // GET /api/posts/{id}/comments
+    [AllowAnonymous]
     [HttpGet("{id:guid}/comments")]
-    public async Task<ActionResult<IEnumerable<CommentDto>>> GetComments(Guid id)
+    public async Task<IActionResult> GetComments(Guid id)
     {
         var postExists = await _db.Posts.AnyAsync(p => p.Id == id);
-        if (!postExists) return NotFound(new { message = "Post không tồn tại." });
+        if (!postExists) return NotFound(new { message = "Bài viết không tồn tại." });
+
+        var userId = TryGetUserId();
+        var isOwner = IsOwnerRole();
 
         var comments = await _db.PostComments
             .AsNoTracking()
             .Include(c => c.User)
             .Where(c => c.PostId == id)
             .OrderByDescending(c => c.CreatedAt)
-            .Select(c => new CommentDto(
+            .Select(c => new
+            {
                 c.Id,
                 c.Content,
                 c.CreatedAt,
-                c.User.FullName,
-                "https://i.pravatar.cc/100?u=" + c.UserId
-            ))
+                UserName = c.User.FullName,
+                UserAvatar = "https://i.pravatar.cc/100?u=" + c.UserId,
+                CanDelete = userId != null && (c.UserId == userId.Value || isOwner)
+            })
             .ToListAsync();
 
         return Ok(comments);
     }
 
     // POST /api/posts/{id}/comments
+    [Authorize]
     [HttpPost("{id:guid}/comments")]
     public async Task<IActionResult> AddComment(Guid id, [FromBody] CreateCommentDto dto)
     {
@@ -180,7 +209,7 @@ public class PostsController : ControllerBase
             return BadRequest(new { message = "Nội dung bình luận không được trống." });
 
         var postExists = await _db.Posts.AnyAsync(p => p.Id == id);
-        if (!postExists) return NotFound(new { message = "Post không tồn tại." });
+        if (!postExists) return NotFound(new { message = "Bài viết không tồn tại." });
 
         var userId = GetUserId();
 
@@ -200,15 +229,17 @@ public class PostsController : ControllerBase
     }
 
     // DELETE /api/posts/comments/{commentId}
+    [Authorize]
     [HttpDelete("comments/{commentId:guid}")]
     public async Task<IActionResult> DeleteComment(Guid commentId)
     {
         var userId = GetUserId();
+        var isOwner = IsOwnerRole();
 
         var comment = await _db.PostComments.FirstOrDefaultAsync(c => c.Id == commentId);
         if (comment == null) return NotFound(new { message = "Bình luận không tồn tại." });
 
-        if (comment.UserId != userId)
+        if (comment.UserId != userId && !isOwner)
             return StatusCode(StatusCodes.Status403Forbidden, new { message = "Bạn không có quyền xoá bình luận này." });
 
         _db.PostComments.Remove(comment);

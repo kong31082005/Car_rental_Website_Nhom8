@@ -84,6 +84,8 @@ Dự án hỗ trợ các nghiệp vụ chính như: tìm kiếm xe, đặt thuê
 | Add Car | Vũ Trường Giang | 03/04/2026 | [Xem](./docs/SRS_ADD_CAR.md) |
 | Car Controller | Vũ Trường Giang | 03/04/2026 | [Xem](./docs/SRS_CAR_CONTROLLER.md) |
 | Favorite Car | Nguyễn Văn Công | 11/04/2026 | [Xem](./docs/SRS_FAVORITE_CAR.md) |
+| Favorite Car | Nguyễn Văn Công | 12/04/2026 | [Xem](./docs/SRS_REWARD_REDEEM_CAR.md) |
+| Favorite Car | Nguyễn Văn Công | 12/04/2026 | [Xem](./docs/SRS_VOUCHER_MANAGEMENT_CAR.md) |
 
 ---
 

@@ -20,6 +20,10 @@ public class AppDbContext : DbContext
     public DbSet<PostLike> PostLikes => Set<PostLike>();
     public DbSet<PostComment> PostComments => Set<PostComment>();
     public DbSet<FavoriteCar> FavoriteCars => Set<FavoriteCar>();
+    public DbSet<Voucher> Vouchers { get; set; }
+    public DbSet<UserVoucher> UserVouchers { get; set; }
+    public DbSet<RewardPointAccount> RewardPointAccounts { get; set; }
+    public DbSet<RewardSpinHistory> RewardSpinHistories { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
