@@ -552,7 +552,7 @@ function Register() {
 
                       <div className="register-text">
                         Đã có tài khoản?{" "}
-                        <Link to="/">
+                        <Link to="/login">
                           <span>Đăng nhập ngay</span>
                         </Link>
                       </div>

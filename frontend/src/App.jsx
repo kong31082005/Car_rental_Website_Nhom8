@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Toaster } from "react-hot-toast";
 import Login from "./pages/Login.jsx";
 import Register from "./pages/Register.jsx";
 import HomeCustomer from "./pages/HomeCustomer.jsx";
@@ -13,15 +14,40 @@ import VoucherManager from "./pages/AdminScreens/VoucherManager.jsx";
 import NewsManagement from "./pages/AdminScreens/NewsManager.jsx";
 import AdminSettings from "./pages/AdminScreens/Setting.jsx";
 import SearchResults from "./pages/SearchResults.jsx";
+import CarDetail from "./pages/CarDetail.jsx";
+import FavoriteCars from "./pages/FavoriteCars.jsx";
+import ProtectedRoute from "./components/ProtectedRoute.jsx";
 
 function App() {
   return (
     <BrowserRouter>
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          style: {
+            borderRadius: "15px",
+            background: "#111827",
+            color: "#fff",
+            fontWeight: 600,
+            padding: "14px 18px",
+          },
+        }}
+/>
       <Routes>
-        <Route path="/" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+        <Route path="/" element={<HomeCustomer />} />
         <Route path="/home" element={<HomeCustomer />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
         <Route path="/search" element={<SearchResults />} />
+        <Route path="/cars/:id" element={<CarDetail />} />
+        <Route
+          path="/favorites"
+          element={
+            <ProtectedRoute>
+              <FavoriteCars />
+            </ProtectedRoute>
+          }
+        />
         <Route path="/admin" element={<AdminHome />}>
           <Route index element={<Dashboard />} />
           <Route path="cars" element={<CarsManager />} />

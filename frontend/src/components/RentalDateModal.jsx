@@ -16,7 +16,6 @@ function RentalDateModal({
     setEndDateTime(endValue || "");
   }, [startValue, endValue, open]);
 
-  const today = useMemo(() => new Date(), []);
   const maxDate = useMemo(() => {
     const d = new Date();
     d.setMonth(d.getMonth() + 4);
@@ -33,7 +32,7 @@ function RentalDateModal({
     )}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   };
 
-  const minInput = toInputDateTime(today);
+  const minInput = toInputDateTime(new Date());
   const maxInput = toInputDateTime(maxDate);
 
   const validate = () => {
@@ -41,8 +40,17 @@ function RentalDateModal({
       return "Vui lòng chọn đầy đủ thời gian nhận xe và trả xe.";
     }
 
+    const now = new Date();
     const start = new Date(startDateTime);
     const end = new Date(endDateTime);
+
+    if (start < now) {
+      return "Thời gian nhận xe không được nhỏ hơn thời gian hiện tại.";
+    }
+
+    if (end < now) {
+      return "Thời gian trả xe không được nhỏ hơn thời gian hiện tại.";
+    }
 
     if (end <= start) {
       return "Thời gian trả xe phải sau thời gian nhận xe.";
@@ -115,7 +123,7 @@ function RentalDateModal({
 
           {error && (
             <div className="rental-error-box">
-              <img src="/images/rental-warning.svg" alt="warning" />
+              <span className="warning-icon">⚠️</span>
               <p>{error}</p>
             </div>
           )}

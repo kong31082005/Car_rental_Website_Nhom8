@@ -1706,7 +1706,10 @@ function HomeCustomer() {
             <div className="featured-grid">
               {displayCars.map((car, index) =>
                 car ? (
-                  <div className="car-card" key={car.id}>
+                  <div className="car-card" key={car.id}
+                          onClick={() => navigate(`/cars/${car.id}`)}
+                          style={{ cursor: "pointer" }}
+                  >
                     <div className="car-image-wrap">
                       <img src={car.image} alt={car.name} className="car-image" />
                       <div className="car-badge-top">⚡</div>
