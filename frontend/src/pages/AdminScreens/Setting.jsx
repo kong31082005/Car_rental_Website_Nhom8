@@ -1,6 +1,8 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 function AdminSettings() {
+  const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState("general");
 
   const handleLogout = () => {
@@ -8,10 +10,10 @@ function AdminSettings() {
       "Bạn có chắc chắn muốn đăng xuất khỏi hệ thống?",
     );
     if (confirmLogout) {
-      // Logic xóa token/session tại đây ví dụ:
-      // localStorage.removeItem("adminToken");
-      alert("Đã đăng xuất thành công!");
-      // window.location.href = "/login";
+      // Xóa token khỏi localStorage
+      localStorage.removeItem("token");
+      // Chuyển hướng về trang đăng nhập
+      navigate("/login");
     }
   };
 
