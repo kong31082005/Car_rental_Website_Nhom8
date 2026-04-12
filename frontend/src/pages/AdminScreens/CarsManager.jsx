@@ -8,6 +8,8 @@ function CarsManager() {
   const [cars, setCars] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedBrand, setSelectedBrand] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     const fetchCars = async () => {
@@ -41,18 +43,19 @@ function CarsManager() {
     }
   };
 
-  const handleDelete = async (id) => {
-    const confirmDelete = window.confirm("Bạn có chắc muốn xóa xe này?");
-    if (!confirmDelete) return;
-
-    try {
-      await deleteCar(id);
-      setCars((prevCars) => prevCars.filter((car) => car.id !== id));
-    } catch (error) {
-      console.error("Xóa xe thất bại:", error);
-      alert(error.message || "Xóa xe thất bại");
-    }
-  };
+  const filteredCars = cars.filter((car) => {
+    const matchesBrand =
+      selectedBrand === "" ||
+      car.brand.toLowerCase() === selectedBrand.toLowerCase();
+    const matchesSearch =
+      searchTerm === "" ||
+      car.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (car.licensePlate || car.plate)
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      car.brand.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesBrand && matchesSearch;
+  });
 
   return (
     <div className="manager-container">
@@ -131,11 +134,18 @@ function CarsManager() {
           type="text"
           className="search-input"
           placeholder="Tìm kiếm theo tên xe, biển số..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
         />
-        <select className="search-input" style={{ flex: "0 0 200px" }}>
+        <select
+          className="search-input"
+          style={{ flex: "0 0 200px" }}
+          value={selectedBrand}
+          onChange={(e) => setSelectedBrand(e.target.value)}
+        >
           <option value="">Tất cả hãng</option>
           {carBrands.map((brandData) => (
-            <option key={brandData.brand} value={brandData.brand.toLowerCase()}>
+            <option key={brandData.brand} value={brandData.brand}>
               {brandData.brand}
             </option>
           ))}
@@ -159,7 +169,7 @@ function CarsManager() {
             </tr>
           </thead>
           <tbody>
-            {cars.map((car) => (
+            {filteredCars.map((car) => (
               <tr key={car.id}>
                 <td>
                   <div style={{ fontWeight: 800 }}>
