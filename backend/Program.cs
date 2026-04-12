@@ -12,6 +12,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 QuestPDF.Settings.License = LicenseType.Community;
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo

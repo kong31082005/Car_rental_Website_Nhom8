@@ -5,6 +5,7 @@ using RentalCarBE.Api.Data;
 using RentalCarBE.Api.Models.DTOs.Posts;
 using RentalCarBE.Api.Models.Entities;
 using System.Security.Claims;
+using RentalCarBE.Api.Services;
 
 namespace RentalCarBE.Api.Controllers;
 
@@ -13,7 +14,12 @@ namespace RentalCarBE.Api.Controllers;
 public class PostsController : ControllerBase
 {
     private readonly AppDbContext _db;
-    public PostsController(AppDbContext db) => _db = db;
+    private readonly INotificationService _notificationService;
+    public PostsController(AppDbContext db, INotificationService notificationService)
+    {
+        _db = db;
+        _notificationService = notificationService;
+    }
 
     private Guid? TryGetUserId()
     {
@@ -167,6 +173,27 @@ public class PostsController : ControllerBase
         });
 
         await _db.SaveChangesAsync();
+
+        var post = await _db.Posts
+            .AsNoTracking()
+            .Include(p => p.Author)
+            .FirstOrDefaultAsync(p => p.Id == id);
+
+        var actor = await _db.AppUsers
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == userId);
+
+        if (post != null && actor != null && post.AuthorId != userId)
+        {
+            await _notificationService.CreateAsync(
+                post.AuthorId,
+                "Bài viết có lượt thích mới",
+                $"{actor.FullName} đã thích bài viết của bạn.",
+                NotificationType.PostLiked,
+                "/community"
+            );
+        }
+
         return Ok(new { liked = true });
     }
 
@@ -224,6 +251,25 @@ public class PostsController : ControllerBase
 
         _db.PostComments.Add(comment);
         await _db.SaveChangesAsync();
+
+        var post = await _db.Posts
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == id);
+
+        var actor = await _db.AppUsers
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == userId);
+
+        if (post != null && actor != null && post.AuthorId != userId)
+        {
+            await _notificationService.CreateAsync(
+                post.AuthorId,
+                "Bài viết có bình luận mới",
+                $"{actor.FullName} đã bình luận bài viết của bạn.",
+                NotificationType.PostCommented,
+                "/community"
+            );
+        }
 
         return Ok(new { comment.Id });
     }
