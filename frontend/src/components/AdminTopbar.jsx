@@ -1,3 +1,4 @@
+import NotificationBell from "./NotificationBell";
 function AdminTopbar() {
   return (
     <>
@@ -54,7 +55,7 @@ function AdminTopbar() {
         </div>
 
         <div className="topbar-actions">
-          <button className="circle-btn">🔔</button>
+          <NotificationBell />
           <button className="circle-btn">💬</button>
           <button className="circle-btn">⚙️</button>
         </div>

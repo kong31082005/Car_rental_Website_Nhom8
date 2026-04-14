@@ -1,8 +1,9 @@
 import avatarImage from "../assets/avatar.png";
 import logoImage from "../assets/logo.png";
 import { Link, useNavigate } from "react-router-dom";
-import { Bell, Heart, MessageCircle } from "lucide-react";
+import { Heart, MessageCircle } from "lucide-react";
 import { useEffect, useState } from "react";
+import NotificationBell from "./NotificationBell";
 
 function CustomerHeader() {
   const navigate = useNavigate();
@@ -317,14 +318,7 @@ function CustomerHeader() {
                   </a>
 
                   <div className="icon-group">
-                    <button
-                      className="icon-btn"
-                      title="Thông báo"
-                      onClick={() => requireLogin()}
-                      type="button"
-                    >
-                      <Bell size={18} />
-                    </button>
+                    <NotificationBell />
 
                     <button
                       className="icon-btn heart-icon"

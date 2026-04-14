@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RentalCarBE.Api.Data;
 using System.Security.Claims;
+using RentalCarBE.Api.Services;
+using RentalCarBE.Api.Models.Enums;
 
 namespace RentalCarBE.Api.Controllers;
 
@@ -12,10 +14,12 @@ namespace RentalCarBE.Api.Controllers;
 public class RewardsController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly INotificationService _notificationService;
 
-    public RewardsController(AppDbContext db)
+    public RewardsController(AppDbContext db, INotificationService notificationService)
     {
         _db = db;
+        _notificationService = notificationService;
     }
 
     private Guid? GetCurrentUserId()
@@ -165,6 +169,14 @@ public class RewardsController : ControllerBase
         _db.UserVouchers.Add(userVoucher);
 
         await _db.SaveChangesAsync();
+
+        await _notificationService.CreateAsync(
+            userId.Value,
+            "Đổi voucher thành công",
+            $"Bạn đã đổi thành công voucher {voucher.Title}.",
+            NotificationType.System,
+            "/rewards"
+        );
 
         return Ok(new
         {
@@ -344,6 +356,14 @@ public class RewardsController : ControllerBase
         _db.RewardSpinHistories.Add(history);
 
         await _db.SaveChangesAsync();
+
+        await _notificationService.CreateAsync(
+            userId.Value,
+            "Kết quả vòng quay may mắn",
+            $"Bạn vừa nhận: {rewardLabel}.",
+            NotificationType.System,
+            "/rewards"
+        );
 
         var remainingSpins = Math.Max(0, 2 - (todaySpinCount + 1));
 
