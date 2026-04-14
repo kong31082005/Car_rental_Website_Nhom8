@@ -7,6 +7,10 @@ using RentalCarBE.Api.Models.Entities;
 using RentalCarBE.Api.Models.Enums;
 using RentalCarBE.Api.Services;
 using System.Security.Claims;
+using PayOS;
+using PayOS.Models;
+using PayOS.Models.Webhooks;
+using PayOS.Models.V2.PaymentRequests;
 
 namespace RentalCarBE.Api.Controllers;
 
@@ -17,11 +21,20 @@ public class BookingsController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly IContractPdfService _pdfService;
+    private readonly IConfiguration _configuration;
+    private readonly PayOSClient _payOS;
 
-    public BookingsController(AppDbContext db, IContractPdfService pdfService)
+    public BookingsController(AppDbContext db, IContractPdfService pdfService, IConfiguration configuration)
     {
         _db = db;
         _pdfService = pdfService;
+        _configuration = configuration;
+        // Khởi tạo PayOS client với thông tin từ appsettings.json
+        _payOS = new PayOSClient(
+            _configuration["PayOS:ClientId"] ?? "",
+            _configuration["PayOS:ApiKey"] ?? "",
+            _configuration["PayOS:ChecksumKey"] ?? ""
+    );
     }
 
     private Guid GetUserId()
@@ -77,6 +90,82 @@ BÊN THUÊ
 ";
     }
 
+    // 1. Hàm tạo Link thanh toán PayOS
+    [HttpPost("{id:guid}/payos-link")]
+    public async Task<IActionResult> CreatePayOSLink(Guid id)
+    {
+        var booking = await _db.Bookings.FirstOrDefaultAsync(x => x.Id == id);
+        if (booking == null) return NotFound(new { message = "Không tìm thấy đơn đặt xe." });
+
+        if (booking.Status != BookingStatus.WaitingForDeposit)
+            return BadRequest(new { message = "Đơn hàng không ở trạng thái chờ thanh toán." });
+
+        try
+        {
+            long orderCode = long.Parse(DateTimeOffset.Now.ToString("yyyyMMddHHmmss"));
+            string description = $"Thanh toan {booking.Id.ToString()[..8].ToUpper()}";
+
+            var paymentRequest = new CreatePaymentLinkRequest
+            {
+                OrderCode = orderCode,
+                Amount = (int)booking.TotalAmount,
+                Description = description,
+                ReturnUrl = "http://localhost:5173/bookings/" + booking.Id,
+                CancelUrl = "http://localhost:5173/bookings/" + booking.Id
+            };
+
+            var result = await _payOS.PaymentRequests.CreateAsync(paymentRequest);
+
+            booking.Note += $"\n[PayOS-OrderCode]: {orderCode}";
+            await _db.SaveChangesAsync();
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = "Lỗi PayOS: " + ex.Message });
+        }
+    }
+    
+
+    [HttpPost("payos-webhook")]
+    [AllowAnonymous]
+    public async Task<IActionResult> PayOSWebhook([FromBody] Webhook webhookBody)
+    {
+        try
+        {
+            var data = await _payOS.Webhooks.VerifyAsync(webhookBody);
+
+            // Thay vì FirstOrDefaultAsync trực tiếp, dùng 2 bước:
+            var waitingBookings = await _db.Bookings
+                .Where(x => x.Status == BookingStatus.WaitingForDeposit)
+                .ToListAsync(); // Lấy ra bộ nhớ trước
+
+            var targetBooking = waitingBookings
+                .FirstOrDefault(x => data.Description.Contains(x.Id.ToString()[..8].ToUpper())); // Lọc trong bộ nhớ
+
+            if (targetBooking != null && data.Amount >= (int)targetBooking.TotalAmount)
+            {
+                targetBooking.Status = BookingStatus.Confirmed;
+                targetBooking.Note += $"\n[PayOS]: Thanh toán thành công lúc {DateTime.Now}. GD: {data.PaymentLinkId}";
+
+                var agreement = await _db.RentalAgreements.FirstOrDefaultAsync(x => x.BookingId == targetBooking.Id);
+                if (agreement != null)
+                {
+                    agreement.PdfUrl = await _pdfService.GenerateAsync(targetBooking);
+                }
+
+                await _db.SaveChangesAsync();
+            }
+
+            return Ok(new { success = true });
+        }
+        catch (Exception)
+        {
+            return Ok(new { success = false });
+        }
+    }
+
     // POST /api/bookings
     [HttpPost]
     public async Task<IActionResult> CreateBooking([FromBody] CreateBookingDto dto)
@@ -99,8 +188,9 @@ BÊN THUÊ
         x.CustomerId == customerId &&
         x.CarId == dto.CarId &&
         (x.Status == BookingStatus.Pending ||
-        x.Status == BookingStatus.Approved ||
-        x.Status == BookingStatus.Confirmed));
+         x.Status == BookingStatus.WaitingForDeposit ||
+         x.Status == BookingStatus.Confirmed ||
+         x.Status == BookingStatus.PickedUp));
 
         if (existingBooking)
         {
@@ -116,9 +206,9 @@ BÊN THUÊ
 
         var isOverlapped = await _db.Bookings.AnyAsync(b =>
             b.CarId == dto.CarId &&
-           (b.Status == BookingStatus.Pending ||
-            b.Status == BookingStatus.Approved ||
-            b.Status == BookingStatus.Confirmed) &&
+           (b.Status == BookingStatus.WaitingForDeposit ||
+             b.Status == BookingStatus.Confirmed ||
+             b.Status == BookingStatus.PickedUp) &&
             dto.StartAt < b.EndAt &&
             dto.EndAt > b.StartAt);
 
@@ -437,8 +527,8 @@ BÊN THUÊ
             // --- BỔ SUNG QUAN TRỌNG: CHECK LẠI TRÙNG LỊCH TRƯỚC KHI DUYỆT ---
             var isStillAvailable = !await _db.Bookings.AnyAsync(b =>
                 b.CarId == booking.CarId &&
-                b.Id != booking.Id && // Không tự check chính nó
-                (b.Status == BookingStatus.Approved || b.Status == BookingStatus.Confirmed) &&
+                b.Id != booking.Id &&
+                (b.Status == BookingStatus.WaitingForDeposit || b.Status == BookingStatus.Confirmed) && // ĐỔI Approved
                 booking.StartAt < b.EndAt &&
                 booking.EndAt > b.StartAt);
 
@@ -448,10 +538,10 @@ BÊN THUÊ
             }
 
             // Cập nhật thông tin phê duyệt
+            booking.Status = BookingStatus.WaitingForDeposit;
             booking.OwnerAgreedTerms = true;
             booking.OwnerAgreedAt = DateTime.UtcNow;
-            booking.OwnerAgreementReason = "Tôi đồng ý cho thuê xe";
-            booking.Status = BookingStatus.Approved;
+            booking.OwnerAgreementReason = "Chủ xe đã duyệt, vui lòng thanh toán để hoàn tất.";
 
             // Build lại snapshot vì lúc này đã có thông tin OwnerAgreedAt
             booking.ContractSnapshot = BuildContractSnapshot(booking);
@@ -492,7 +582,7 @@ BÊN THUÊ
             await _db.SaveChangesAsync();
             await transaction.CommitAsync(); // Hoàn tất giao dịch
 
-            return Ok(new { message = "Đã duyệt đơn và tạo hợp đồng thành công.", pdfUrl });
+            return Ok(new { message = "Đã duyệt đơn. Đang chờ khách hàng thanh toán.", pdfUrl });
         }
         catch (Exception ex)
         {
@@ -558,41 +648,36 @@ BÊN THUÊ
         if (booking == null)
             return NotFound(new { message = "Không tìm thấy đơn thuê." });
 
-        if (booking.Status != BookingStatus.Approved)
-            return BadRequest(new { message = "Chỉ có thể bàn giao xe cho đơn đã được duyệt trên hệ thống." });
+        // Kiểm tra: Chỉ cho nhận xe khi đơn đã được thanh toán thành công
+        if (booking.Status != BookingStatus.Confirmed)
+            return BadRequest(new { message = "Đơn hàng chưa hoàn tất thanh toán hoặc không ở trạng thái sẵn sàng bàn giao." });
 
         var originalDuration = booking.EndAt - booking.StartAt;
 
-        // cập nhật thời gian thực tế
+        // Cập nhật thời gian thực tế bắt đầu lăn bánh
         booking.StartAt = DateTime.UtcNow;
         booking.EndAt = booking.StartAt.Add(originalDuration);
 
-        // cập nhật trạng thái
-        booking.Status = BookingStatus.Confirmed;
+        // Chuyển sang trạng thái "Đang thuê"
+        booking.Status = BookingStatus.PickedUp;
 
-        // ghi chú
-        booking.Note += $"\n[Hệ thống]: Xác nhận bàn giao thực tế. Thời gian thuê đã được điều chỉnh bắt đầu từ: {booking.StartAt.ToLocalTime():dd/MM/yyyy HH:mm}.";
+        booking.Note += $"\n[Hệ thống]: Xác nhận bàn giao thực tế lúc {booking.StartAt.ToLocalTime():dd/MM/yyyy HH:mm}.";
 
-        // build lại hợp đồng
         booking.ContractSnapshot = BuildContractSnapshot(booking);
 
-        // cập nhật agreement + generate lại pdf
-        var agreement = await _db.RentalAgreements
-            .FirstOrDefaultAsync(x => x.BookingId == booking.Id);
-
+        // Cập nhật lại bản PDF hợp đồng chính thức có ngày giờ nhận xe thực tế
+        var agreement = await _db.RentalAgreements.FirstOrDefaultAsync(x => x.BookingId == booking.Id);
         if (agreement != null)
         {
             agreement.AgreementContent = booking.ContractSnapshot;
-
-            var pdfUrl = await _pdfService.GenerateAsync(booking);
-            agreement.PdfUrl = pdfUrl;
+            agreement.PdfUrl = await _pdfService.GenerateAsync(booking);
         }
 
         await _db.SaveChangesAsync();
 
         return Ok(new
         {
-            message = "Bàn giao xe thành công. Thời gian thuê bắt đầu tính từ bây giờ!",
+            message = "Bàn giao xe thành công. Chuyến đi bắt đầu!",
             newStartAt = booking.StartAt,
             newEndAt = booking.EndAt
         });
@@ -610,7 +695,7 @@ BÊN THUÊ
         if (booking == null)
             return NotFound(new { message = "Không tìm thấy đơn thuê." });
 
-        if (booking.Status != BookingStatus.Confirmed)
+        if (booking.Status != BookingStatus.PickedUp)
             return BadRequest(new { message = "Chỉ có thể hoàn thành đơn thuê đang ở trạng thái 'Đang dùng'." });
 
         // cập nhật trạng thái
@@ -643,6 +728,81 @@ BÊN THUÊ
         {
             message = "Đã xác nhận hoàn thành đơn thuê. Xe đã được bàn giao lại cho chủ xe.",
             status = booking.Status
+        });
+    }
+
+    // POST /api/bookings/sepay-webhook
+    [HttpPost("sepay-webhook")]
+    [AllowAnonymous]
+    public async Task<IActionResult> SePayWebhook([FromBody] SePayWebhookDto data)
+    {
+        try
+        {
+            string content = data.Content?.ToString().ToUpper() ?? "";
+            decimal amount = data.TransferAmount;
+
+            // Tìm đơn hàng dựa trên việc nội dung chuyển khoản CÓ CHỨA 8 ký tự đầu của ID
+            // Cách này an toàn hơn Substring
+            var booking = await _db.Bookings
+                .Where(x => x.Status == BookingStatus.WaitingForDeposit)
+                .ToListAsync(); // Lấy danh sách chờ thanh toán ra để so khớp
+
+            var targetBooking = booking.FirstOrDefault(x =>
+                content.Contains(x.Id.ToString()[..8].ToUpper()));
+
+            if (targetBooking == null) return Ok(new { message = "Không tìm thấy đơn hàng" });
+
+            if (amount >= targetBooking.TotalAmount)
+            {
+                targetBooking.Status = BookingStatus.Confirmed;
+                targetBooking.Note += $"\n[SePay]: Tự động xác nhận thanh toán thành công lúc {DateTime.Now}.";
+
+                var agreement = await _db.RentalAgreements.FirstOrDefaultAsync(x => x.BookingId == targetBooking.Id);
+                if (agreement != null)
+                {
+                    agreement.PdfUrl = await _pdfService.GenerateAsync(targetBooking);
+                }
+            }
+
+            await _db.SaveChangesAsync();
+            return Ok(new { success = true });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    // GET /api/bookings/{id}/payment-qr
+    [HttpGet("{id:guid}/payment-qr")]
+    public async Task<IActionResult> GetPaymentQr(Guid id)
+    {
+        var booking = await _db.Bookings.FirstOrDefaultAsync(x => x.Id == id);
+        if (booking == null) return NotFound(new { message = "Không tìm thấy đơn đặt xe." });
+
+        // Lấy thông tin từ PaymentConfig trong appsettings.json
+        string bankId = _configuration["PaymentConfig:BankId"];
+        string accountNo = _configuration["PaymentConfig:AccountNo"];
+        string accountName = _configuration["PaymentConfig:AccountName"];
+        string bankName = _configuration["PaymentConfig:BankName"];
+
+        // Nội dung chuyển khoản
+        string description = $"THANH TOAN DON {booking.Id.ToString()[..8].ToUpper()}";
+
+        // Tạo link QR (Sử dụng mẫu compact của VietQR)
+        string qrUrl = $"https://img.vietqr.io/image/{bankId}-{accountNo}-compact.png" +
+                       $"?amount={booking.TotalAmount}" +
+                       $"&addInfo={Uri.EscapeDataString(description)}" +
+                       $"&accountName={Uri.EscapeDataString(accountName)}";
+
+        return Ok(new
+        {
+            qrUrl,
+            amount = booking.TotalAmount,
+            description,
+            bankName,
+            accountNo,
+            accountName
         });
     }
 }

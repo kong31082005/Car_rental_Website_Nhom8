@@ -20,10 +20,17 @@ function AdminHome() {
 
   const handleMenuClick = (path) => {
     if (path === "logout") {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
+      const confirmLogout = window.confirm(
+        "Bạn có chắc chắn muốn đăng xuất khỏi hệ thống không?",
+      );
 
-      navigate("/login");
+      if (confirmLogout) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+
+        navigate("/login");
+      }
+
       return;
     }
 

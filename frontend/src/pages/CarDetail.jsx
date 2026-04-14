@@ -8,7 +8,11 @@ import {
   checkFavorite,
   toggleFavorite,
 } from "../services/carsService";
-import { getPublicVouchers, validateVoucherCode } from "../services/voucherService";
+import {
+  getPublicVouchers,
+  validateVoucherCode,
+} from "../services/voucherService";
+import { createBooking } from "../services/bookingsService";
 import toast from "react-hot-toast";
 
 import {
@@ -61,6 +65,7 @@ function CarDetail() {
   const [promoVoucher, setPromoVoucher] = useState(null);
   const [promoLoading, setPromoLoading] = useState(false);
   const [promoMessage, setPromoMessage] = useState("");
+  const [bookingLoading, setBookingLoading] = useState(false);
 
   const token = localStorage.getItem("token");
 
@@ -120,8 +125,8 @@ function CarDetail() {
     const rawImages = Array.isArray(car.images)
       ? car.images
       : Array.isArray(car.Images)
-      ? car.Images
-      : [];
+        ? car.Images
+        : [];
 
     const mapped = rawImages
       .map((item, index) => ({
@@ -221,14 +226,14 @@ function CarDetail() {
         const rawImages = Array.isArray(data.images)
           ? data.images
           : Array.isArray(data.Images)
-          ? data.Images
-          : [];
+            ? data.Images
+            : [];
 
         if (rawImages.length > 0) {
           setActiveImage(rawImages[0].url || rawImages[0].Url || "");
         } else {
           setActiveImage(
-            data.thumbnail || data.Thumbnail || "/images/car-placeholder.jpg"
+            data.thumbnail || data.Thumbnail || "/images/car-placeholder.jpg",
           );
         }
       } catch (err) {
@@ -245,7 +250,9 @@ function CarDetail() {
     return (
       <>
         <CustomerHeader />
-        <div style={{ minHeight: "60vh", display: "grid", placeItems: "center" }}>
+        <div
+          style={{ minHeight: "60vh", display: "grid", placeItems: "center" }}
+        >
           <div>Đang tải chi tiết xe...</div>
         </div>
         <Footer />
@@ -304,7 +311,8 @@ function CarDetail() {
   const fuel = car.fuel || car.Fuel || "";
   const fuelConsumption = car.fuelConsumption || car.FuelConsumption || "";
   const address = car.address || car.Address || "Đang cập nhật";
-  const description = car.description || car.Description || "Đang cập nhật mô tả.";
+  const description =
+    car.description || car.Description || "Đang cập nhật mô tả.";
   const owner = car.owner || car.Owner || null;
   const pricePerDay = car?.pricePerDay || car?.PricePerDay || 0;
 
@@ -337,7 +345,7 @@ function CarDetail() {
   };
 
   const selectedVoucher = publicVouchers.find(
-    (item) => String(item.id) === String(selectedVoucherId)
+    (item) => String(item.id) === String(selectedVoucherId),
   );
 
   const calculateVoucherDiscount = () => {
@@ -395,7 +403,7 @@ function CarDetail() {
   const promoCodeDiscount = calculatePromoCodeDiscount();
   const finalTotal = Math.max(
     0,
-    rentalSubtotal - voucherDiscount - promoCodeDiscount
+    rentalSubtotal - voucherDiscount - promoCodeDiscount,
   );
 
   const handleApplyPromoCode = async () => {
@@ -427,6 +435,57 @@ function CarDetail() {
       setPromoMessage(error.message);
     } finally {
       setPromoLoading(false);
+    }
+  };
+
+  const handleBooking = async () => {
+    if (!requireLogin()) return;
+
+    if (!pickupDateTime || !returnDateTime) {
+      toast.error("Vui lòng chọn thời gian nhận và trả xe.");
+      return;
+    }
+
+    if (new Date(pickupDateTime) >= new Date(returnDateTime)) {
+      toast.error("Thời gian trả xe phải sau thời gian nhận xe.");
+      return;
+    }
+
+    if (deliveryType === "delivery" && !deliveryAddress.trim()) {
+      toast.error("Vui lòng nhập địa chỉ giao xe.");
+      return;
+    }
+
+    try {
+      setBookingLoading(true);
+
+      const payload = {
+        carId: id,
+        startAt: new Date(pickupDateTime).toISOString(),
+        endAt: new Date(returnDateTime).toISOString(),
+        pickupType: deliveryType === "delivery" ? 1 : 0,
+        pickupAddress:
+          deliveryType === "delivery"
+            ? deliveryAddress.trim()
+            : car.address || car.Address || "",
+        pricePerDay: Number(pricePerDay),
+        insurancePerDay: 0,
+        discountAmount: voucherDiscount + promoCodeDiscount,
+        rentalPapers: "CCCD/CMND + Giấy phép lái xe",
+        collateral: "Tài sản thế chấp: Tiền mặt hoặc giấy tờ xe",
+        voucherId: selectedVoucherId || null,
+        promoCode: promoVoucher ? promoCode : null,
+        note: "",
+        customerAgreedTerms: true,
+      };
+
+      const result = await createBooking(payload);
+      toast.success("Đặt xe thành công! Vui lòng chờ chủ xe xác nhận.");
+      navigate(`/bookings/${result.id}`);
+    } catch (error) {
+      toast.error(error.message || "Đặt xe thất bại, vui lòng thử lại.");
+    } finally {
+      setBookingLoading(false);
     }
   };
 
@@ -1440,8 +1499,7 @@ function CarDetail() {
                       5.0
                     </span>
                     <span className="car-meta-item">
-                      <CarFront size={16} />
-                      0 chuyến
+                      <CarFront size={16} />0 chuyến
                     </span>
                     <span className="car-meta-item">
                       <MapPin size={16} />
@@ -1485,7 +1543,9 @@ function CarDetail() {
                       <Gauge size={22} />
                     </div>
                     <div className="spec-label">Truyền động</div>
-                    <div className="spec-value">{getTransmissionLabel(transmission)}</div>
+                    <div className="spec-value">
+                      {getTransmissionLabel(transmission)}
+                    </div>
                   </div>
 
                   <div className="spec-card">
@@ -1512,7 +1572,9 @@ function CarDetail() {
                     </div>
                     <div className="spec-label">Mức tiêu hao</div>
                     <div className="spec-value">
-                      {fuelConsumption ? `${fuelConsumption} L/100km` : "Đang cập nhật"}
+                      {fuelConsumption
+                        ? `${fuelConsumption} L/100km`
+                        : "Đang cập nhật"}
                     </div>
                   </div>
                 </div>
@@ -1581,13 +1643,18 @@ function CarDetail() {
                 <div className="detail-text">
                   Quy định khác:
                   <br />• Sử dụng xe đúng mục đích.
-                  <br />• Không sử dụng xe vào mục đích phi pháp, trái pháp luật.
+                  <br />• Không sử dụng xe vào mục đích phi pháp, trái pháp
+                  luật.
                   <br />• Không sử dụng xe thuê để cầm cố, thế chấp.
                   <br />• Không hút thuốc, nhả kẹo cao su, xả rác trong xe.
                   <br />• Không chở hàng quốc cấm dễ cháy nổ.
                   <br />• Không chở hoa quả, thực phẩm nặng mùi trong xe.
-                  <br />• Khi trả xe, nếu xe bẩn hoặc có mùi trong xe, khách hàng vui lòng vệ sinh xe sạch sẽ hoặc gửi phụ thu phí vệ sinh xe.
-                  <br />Trân trọng cảm ơn, chúc quý khách hàng có những chuyến đi tuyệt vời !
+                  <br />• Khi trả xe, nếu xe bẩn hoặc có mùi trong xe, khách
+                  hàng vui lòng vệ sinh xe sạch sẽ hoặc gửi phụ thu phí vệ sinh
+                  xe.
+                  <br />
+                  Trân trọng cảm ơn, chúc quý khách hàng có những chuyến đi
+                  tuyệt vời !
                 </div>
               </div>
 
@@ -1612,14 +1679,20 @@ function CarDetail() {
                         />
                       ) : (
                         <div className="owner-avatar-fallback">
-                          {(owner?.fullName || owner?.FullName || "C").charAt(0).toUpperCase()}
+                          {(owner?.fullName || owner?.FullName || "C")
+                            .charAt(0)
+                            .toUpperCase()}
                         </div>
                       )}
                     </div>
 
                     <div className="owner-main-info">
                       <div className="owner-name">
-                        {(owner?.fullName || owner?.FullName || "Chủ xe").toUpperCase()}
+                        {(
+                          owner?.fullName ||
+                          owner?.FullName ||
+                          "Chủ xe"
+                        ).toUpperCase()}
                       </div>
 
                       <div className="owner-meta-line">
@@ -1657,7 +1730,9 @@ function CarDetail() {
                 <div className="owner-highlight-box">
                   <div className="owner-highlight-icon">👑</div>
                   <div className="owner-highlight-text">
-                    Chủ xe 5★ có thời gian phản hồi nhanh chóng, tỉ lệ đồng ý cao, mức giá cạnh tranh & dịch vụ nhận được nhiều đánh giá tốt từ khách hàng.
+                    Chủ xe 5★ có thời gian phản hồi nhanh chóng, tỉ lệ đồng ý
+                    cao, mức giá cạnh tranh & dịch vụ nhận được nhiều đánh giá
+                    tốt từ khách hàng.
                   </div>
                 </div>
               </div>
@@ -1667,7 +1742,8 @@ function CarDetail() {
               <div className="insurance-side-box">
                 <div className="insurance-side-title">Bảo hiểm thuê xe</div>
                 <div className="insurance-side-text">
-                  Chuyến đi được áp dụng bảo hiểm thuê xe cơ bản. Khách thuê sẽ được hỗ trợ trong các trường hợp đủ điều kiện.
+                  Chuyến đi được áp dụng bảo hiểm thuê xe cơ bản. Khách thuê sẽ
+                  được hỗ trợ trong các trường hợp đủ điều kiện.
                 </div>
               </div>
 
@@ -1724,7 +1800,9 @@ function CarDetail() {
                   <div>
                     <div className="pickup-radio-line">
                       <span className="pickup-radio"></span>
-                      <div className="pickup-option-top">Tôi muốn được giao xe tận nơi</div>
+                      <div className="pickup-option-top">
+                        Tôi muốn được giao xe tận nơi
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1741,7 +1819,9 @@ function CarDetail() {
                   </div>
                 )}
 
-                <div className="booking-block-title">Chương trình khuyến mãi</div>
+                <div className="booking-block-title">
+                  Chương trình khuyến mãi
+                </div>
 
                 <div className="booking-field">
                   <select
@@ -1760,7 +1840,10 @@ function CarDetail() {
 
                 <div className="booking-block-title">Mã khuyến mãi</div>
 
-                <div className="booking-field" style={{ display: "flex", gap: "10px" }}>
+                <div
+                  className="booking-field"
+                  style={{ display: "flex", gap: "10px" }}
+                >
                   <input
                     className="booking-input"
                     type="text"
@@ -1844,7 +1927,9 @@ function CarDetail() {
                       <span>Chương trình giảm giá</span>
                     </div>
                     <strong>
-                      {voucherDiscount > 0 ? `- ${formatPrice(voucherDiscount)}` : "0đ"}
+                      {voucherDiscount > 0
+                        ? `- ${formatPrice(voucherDiscount)}`
+                        : "0đ"}
                     </strong>
                   </div>
 
@@ -1853,18 +1938,28 @@ function CarDetail() {
                       <TicketPercent size={16} />
                       <span>Mã khuyến mãi</span>
                     </div>
-                    <strong>{promoCodeDiscount > 0 ? `- ${formatPrice(promoCodeDiscount)}` : "0đ"}</strong>
+                    <strong>
+                      {promoCodeDiscount > 0
+                        ? `- ${formatPrice(promoCodeDiscount)}`
+                        : "0đ"}
+                    </strong>
                   </div>
                 </div>
 
                 <div className="booking-total final">
                   <div className="booking-total-label">Thành tiền</div>
-                  <div className="booking-total-value">{formatPrice(finalTotal)}</div>
+                  <div className="booking-total-value">
+                    {formatPrice(finalTotal)}
+                  </div>
                 </div>
 
-                <button className="booking-btn">
+                <button
+                  className="booking-btn"
+                  onClick={handleBooking}
+                  disabled={bookingLoading}
+                >
                   <span>⚡</span>
-                  <span>CHỌN THUÊ</span>
+                  <span>{bookingLoading ? "ĐANG XỬ LÝ..." : "CHỌN THUÊ"}</span>
                 </button>
               </div>
             </div>

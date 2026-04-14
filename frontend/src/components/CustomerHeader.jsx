@@ -308,9 +308,9 @@ function CustomerHeader() {
                 </div>
               ) : (
                 <>
-                  <a href="#" className="nav-link-custom">
+                  <Link to="/my-bookings" className="nav-link-custom">
                     Chuyến của tôi
-                  </a>
+                  </Link>
 
                   <a href="/rewards" className="nav-link-custom">
                     Quà tặng
@@ -350,7 +350,11 @@ function CustomerHeader() {
                       className="avatar-box"
                       onClick={() => setShowDropdown((prev) => !prev)}
                     >
-                      <img src={avatarImage} alt="avatar" className="avatar-img" />
+                      <img
+                        src={avatarImage}
+                        alt="avatar"
+                        className="avatar-img"
+                      />
                       <span className="fw-semibold">Nguyễn Văn Công</span>
                       <span>▾</span>
                     </div>

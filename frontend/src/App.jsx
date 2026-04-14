@@ -20,6 +20,8 @@ import Rewards from "./pages/Rewards.jsx";
 import CommunityFeed from "./pages/CommunityFeed.jsx";
 import CreatePost from "./pages/CreatePost.jsx";
 import AdminCommunityFeed from "./pages/AdminScreens/AdminCommunityFeed.jsx";
+import BookingDetail from "./pages/BookingDetail.jsx";
+import MyBookings from "./pages/MyBookings.jsx";
 
 function App() {
   return (
@@ -35,7 +37,7 @@ function App() {
             padding: "14px 18px",
           },
         }}
-/>
+      />
       <Routes>
         <Route path="/" element={<HomeCustomer />} />
         <Route path="/home" element={<HomeCustomer />} />
@@ -54,6 +56,23 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/my-bookings"
+          element={
+            <ProtectedRoute>
+              <MyBookings />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/bookings/:id"
+          element={
+            <ProtectedRoute>
+              <BookingDetail />
+            </ProtectedRoute>
+          }
+        />
+
         <Route path="/admin" element={<AdminHome />}>
           <Route index element={<Dashboard />} />
           <Route path="cars" element={<CarsManager />} />

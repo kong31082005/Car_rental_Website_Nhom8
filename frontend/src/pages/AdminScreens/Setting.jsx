@@ -5,18 +5,6 @@ function AdminSettings() {
   const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState("general");
 
-  const handleLogout = () => {
-    const confirmLogout = window.confirm(
-      "Bạn có chắc chắn muốn đăng xuất khỏi hệ thống?",
-    );
-    if (confirmLogout) {
-      // Xóa token khỏi localStorage
-      localStorage.removeItem("token");
-      // Chuyển hướng về trang đăng nhập
-      navigate("/login");
-    }
-  };
-
   return (
     <div className="settings-container">
       <style>{`
@@ -192,13 +180,6 @@ function AdminSettings() {
               <span>🛡️</span> Bảo mật & Tài khoản
             </button>
           </div>
-        </div>
-
-        {/* Nút đăng xuất đồng bộ hoàn toàn với menu */}
-        <div className="logout-section">
-          <button className="nav-item btn-logout" onClick={handleLogout}>
-            <span>🚪</span> Đăng xuất
-          </button>
         </div>
       </div>
 
