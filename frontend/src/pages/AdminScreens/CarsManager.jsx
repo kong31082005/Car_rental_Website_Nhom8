@@ -56,6 +56,18 @@ function CarsManager() {
       car.brand.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesBrand && matchesSearch;
   });
+  const handleDelete = async (carId) => {
+    if (window.confirm("Bạn có chắc muốn xóa xe này?")) {
+      try {
+        await deleteCar(carId);
+        // Cập nhật lại danh sách xe sau khi xóa
+        setCars(cars.filter((car) => car.id !== carId));
+      } catch (error) {
+        console.error("Lỗi khi xóa xe:", error);
+        setError("Không thể xóa xe.");
+      }
+    }
+  };
 
   return (
     <div className="manager-container">
