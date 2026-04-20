@@ -90,8 +90,14 @@ function AddCar() {
         const car = await getCarDetail(id);
         setEditMode(true);
         setEditingCarId(id);
+        if (car.brand) {
+          const selectedBrand = carBrands.find((b) => b.brand === car.brand);
+          const models = selectedBrand ? selectedBrand.models : [];
+          setAvailableModels(models); // Cập nhật danh sách dropdown trước
+        }
+
         setCarDetails({
-          licensePlate: car.LicensePlate || "",
+          licensePlate: car.licensePlate || "",
           brand: car.brand || "",
           model: car.model || "",
           year: car.year || 2024,
@@ -108,6 +114,26 @@ function AddCar() {
         });
 
         // Cập nhật availableModels cho brand hiện tại
+        if (car.images && car.images.length > 0) {
+          const serverImages = {
+            front: null,
+            back: null,
+            interior: null,
+            others: null,
+          };
+
+          // Ánh xạ type từ server (0,1,2,3) về các key tương ứng
+          // Dựa trên logic: 0: front, 1: back, 2: interior, 3: others
+          car.images.forEach((img) => {
+            if (img.type === 0) serverImages.front = img.url;
+            if (img.type === 1) serverImages.back = img.url;
+            if (img.type === 2) serverImages.interior = img.url;
+            if (img.type === 3) serverImages.others = img.url;
+          });
+
+          setImages(serverImages);
+        }
+
         if (car.brand) {
           const selectedBrand = carBrands.find((b) => b.brand === car.brand);
           setAvailableModels(selectedBrand ? selectedBrand.models : []);
@@ -130,8 +156,11 @@ function AddCar() {
     if (carDetails.brand) {
       const selectedBrand = carBrands.find((b) => b.brand === carDetails.brand);
       setAvailableModels(selectedBrand ? selectedBrand.models : []);
+
       // Reset model khi brand thay đổi
-      setCarDetails((prev) => ({ ...prev, model: "" }));
+      if (!editMode) {
+        setCarDetails((prev) => ({ ...prev, model: "" }));
+      }
     } else {
       setAvailableModels([]);
       setCarDetails((prev) => ({ ...prev, model: "" }));
@@ -178,13 +207,15 @@ function AddCar() {
   // Xử lý submit form
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // 1. Kiểm tra tính hợp lệ của form trước khi xử lý
     if (!validateForm()) return;
 
     setLoading(true);
-    setProgress(10); // Bắt đầu chạy progress giả lập cho người dùng đỡ sốt ruột
+    setProgress(10); // Bắt đầu tiến trình
 
     try {
-      // Bước 1: Upload các ảnh và thu thập URLs (Xử lý ngầm, không hiện thông báo từng ảnh)
+      // --- BƯỚC 1: XỬ LÝ UPLOAD ẢNH MỚI ---
       const uploadedImages = [];
       const imageTypes = [
         { key: "front", type: 0 },
@@ -195,29 +226,33 @@ function AddCar() {
 
       for (let i = 0; i < imageTypes.length; i++) {
         const { key, type } = imageTypes[i];
+
+        // QUAN TRỌNG: Chỉ upload nếu imageFiles[key] có giá trị (người dùng đã chọn file mới)
+        // Nếu là ảnh cũ từ server, imageFiles[key] sẽ là null và bước này bị bỏ qua
         if (imageFiles[key]) {
           try {
             const imageUrl = await uploadImage(imageFiles[key]);
             uploadedImages.push({
               url: imageUrl,
               type: type,
-              sortOrder: uploadedImages.length,
+              sortOrder: i, // Hoặc dùng uploadedImages.length tùy logic của bạn
             });
           } catch (uploadError) {
-            console.error(`Upload ảnh ${key} thất bại:`, uploadError);
-            // Không ngắt tiến trình, chỉ log lỗi
+            console.error(`Lỗi upload ảnh ${key}:`, uploadError);
+            // Không ngắt tiến trình chính nếu chỉ lỗi 1 ảnh
           }
         }
-        setProgress(10 + ((i + 1) / imageTypes.length) * 40); // Max 50% sau khi xong ảnh
+        // Cập nhật progress giả lập (từ 10% đến 50%)
+        setProgress(10 + ((i + 1) / imageTypes.length) * 40);
       }
 
-      // Bước 2: Tạo hoặc cập nhật xe
+      // --- BƯỚC 2: CẬP NHẬT HOẶC TẠO MỚI THÔNG TIN XE (TEXT) ---
       const carPayload = {
         ...carDetails,
         fuelConsumption: carDetails.consumption
           ? parseFloat(carDetails.consumption)
-          : undefined,
-        pricePerDay: parseInt(price.perDay),
+          : 0,
+        pricePerDay: parseInt(price.perDay) || 0,
         overtimePrice: parseInt(price.overtime) || 0,
         year: parseInt(carDetails.year),
         seats: parseInt(carDetails.seats),
@@ -225,53 +260,52 @@ function AddCar() {
 
       let carId;
       if (editMode && editingCarId) {
+        // Chế độ Sửa: Gọi API cập nhật thông tin cơ bản
         await updateCar(editingCarId, carPayload);
         carId = editingCarId;
       } else {
+        // Chế độ Thêm mới: Gọi API tạo xe và lấy ID trả về
         const carResponse = await createCar(carPayload);
         carId = carResponse.id || carResponse.carId;
       }
 
       setProgress(80);
 
-      // Bước 3: Thêm ảnh vào xe (Xử lý ngầm)
+      // --- BƯỚC 3: LIÊN KẾT ẢNH MỚI VỚI XE ---
+      // Chỉ gọi API thêm ảnh nếu thực sự có ảnh mới được upload thành công ở Bước 1
       if (uploadedImages.length > 0) {
         await Promise.allSettled(
           uploadedImages.map((imageData) => addCarImage(carId, imageData)),
         );
       }
 
-      // Bước cuối: Chỉ hiện THÀNH CÔNG tại đây
+      // --- BƯỚC CUỐI: THÔNG BÁO VÀ ĐIỀU HƯỚNG ---
       setProgress(100);
       addNotification(
         "success",
-        editMode ? "Cập nhật xe thành công!" : "Thêm xe thành công!",
-        `Xe ${carDetails.brand} ${carDetails.model} đã được ${editMode ? "cập nhật" : "lưu"} vào hệ thống.`,
+        editMode ? "Cập nhật thành công!" : "Thêm xe thành công!",
+        `Dữ liệu xe ${carDetails.brand} ${carDetails.model} đã được lưu.`,
       );
 
-      // Nếu đang sửa thì hiển thị thông báo 2 giây rồi mới chuyển về trang quản lý
       if (editMode) {
+        // Nếu đang ở trang sửa, đợi 1.5s để người dùng thấy thông báo rồi chuyển trang
         setTimeout(() => {
           navigate("/admin/cars");
         }, 1500);
-        return;
-      }
-
-      // Reset form sau khi thành công (chỉ với chế độ thêm mới)
-      if (!editMode) {
+      } else {
+        // Nếu là thêm mới, reset form để nhập xe khác
         resetForm();
       }
     } catch (error) {
-      console.error("Lỗi quy trình thêm xe:", error);
-      // Chỉ hiện THẤT BẠI tại đây
+      console.error("Lỗi quy trình lưu dữ liệu:", error);
       addNotification(
         "error",
-        "Thêm xe thất bại",
-        error.message || "Không thể tạo xe, vui lòng kiểm tra lại kết nối.",
+        "Thao tác thất bại",
+        error.message || "Đã có lỗi xảy ra, vui lòng thử lại.",
       );
     } finally {
       setLoading(false);
-      // Tự động ẩn thanh progress sau 1s thành công
+      // Ẩn thanh progress sau khi hoàn tất
       setTimeout(() => setProgress(0), 1000);
     }
   };

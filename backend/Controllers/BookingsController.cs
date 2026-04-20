@@ -126,7 +126,6 @@ BÊN THUÊ
             return BadRequest(new { message = "Lỗi PayOS: " + ex.Message });
         }
     }
-    
 
     [HttpPost("payos-webhook")]
     [AllowAnonymous]
@@ -135,27 +134,37 @@ BÊN THUÊ
         try
         {
             var data = await _payOS.Webhooks.VerifyAsync(webhookBody);
+            int timeoutMinutes = _configuration.GetValue<int>("Booking:AutoCancelTimeoutMinutes", 15);
 
-            // Thay vì FirstOrDefaultAsync trực tiếp, dùng 2 bước:
             var waitingBookings = await _db.Bookings
                 .Where(x => x.Status == BookingStatus.WaitingForDeposit)
-                .ToListAsync(); // Lấy ra bộ nhớ trước
+                .ToListAsync();
 
             var targetBooking = waitingBookings
-                .FirstOrDefault(x => data.Description.Contains(x.Id.ToString()[..8].ToUpper())); // Lọc trong bộ nhớ
+                .FirstOrDefault(x => data.Description.Contains(x.Id.ToString()[..8].ToUpper()));
 
-            if (targetBooking != null && data.Amount >= (int)targetBooking.TotalAmount)
+            if (targetBooking != null)
             {
-                targetBooking.Status = BookingStatus.Confirmed;
-                targetBooking.Note += $"\n[PayOS]: Thanh toán thành công lúc {DateTime.Now}. GD: {data.PaymentLinkId}";
-
-                var agreement = await _db.RentalAgreements.FirstOrDefaultAsync(x => x.BookingId == targetBooking.Id);
-                if (agreement != null)
+                // Kiểm tra đã hết hạn chưa
+                if (targetBooking.OwnerAgreedAt.HasValue &&
+                    targetBooking.OwnerAgreedAt.Value < DateTime.UtcNow.AddMinutes(-timeoutMinutes))
                 {
-                    agreement.PdfUrl = await _pdfService.GenerateAsync(targetBooking);
+                    return Ok(new { success = false, message = "Đơn đã hết hạn thanh toán." });
                 }
 
-                await _db.SaveChangesAsync();
+                if (data.Amount >= (int)targetBooking.TotalAmount)
+                {
+                    targetBooking.Status = BookingStatus.Confirmed;
+                    targetBooking.Note += $"\n[PayOS]: Thanh toán thành công lúc {DateTime.Now}. GD: {data.PaymentLinkId}";
+
+                    var agreement = await _db.RentalAgreements.FirstOrDefaultAsync(x => x.BookingId == targetBooking.Id);
+                    if (agreement != null)
+                    {
+                        agreement.PdfUrl = await _pdfService.GenerateAsync(targetBooking);
+                    }
+
+                    await _db.SaveChangesAsync();
+                }
             }
 
             return Ok(new { success = true });
@@ -184,42 +193,20 @@ BÊN THUÊ
 
         var customerId = GetUserId();
 
+        // Kiểm tra khách đã có đơn đang active với xe này chưa
         var existingBooking = await _db.Bookings.AnyAsync(x =>
-        x.CustomerId == customerId &&
-        x.CarId == dto.CarId &&
-        (x.Status == BookingStatus.Pending ||
-         x.Status == BookingStatus.WaitingForDeposit ||
-         x.Status == BookingStatus.Confirmed ||
-         x.Status == BookingStatus.PickedUp));
+            x.CustomerId == customerId &&
+            x.CarId == dto.CarId &&
+            (x.Status == BookingStatus.WaitingForDeposit ||
+             x.Status == BookingStatus.Confirmed ||
+             x.Status == BookingStatus.PickedUp));
 
         if (existingBooking)
-        {
-            return BadRequest(new
-            {
-                message = "Bạn đã có một yêu cầu thuê hoặc một chuyến đi đang diễn ra với xe này. Vui lòng hoàn thành hoặc hủy đơn cũ trước khi đặt lại."
-            });
-        }
+            return BadRequest(new { message = "Bạn đã có đơn đang chờ thanh toán hoặc đang thuê xe này." });
 
         var car = await _db.Cars.FirstOrDefaultAsync(x => x.Id == dto.CarId && x.IsAvailable);
         if (car == null)
             return NotFound(new { message = "Xe không tồn tại hoặc hiện đang bị khóa." });
-
-        var isOverlapped = await _db.Bookings.AnyAsync(b =>
-            b.CarId == dto.CarId &&
-           (b.Status == BookingStatus.WaitingForDeposit ||
-             b.Status == BookingStatus.Confirmed ||
-             b.Status == BookingStatus.PickedUp) &&
-            dto.StartAt < b.EndAt &&
-            dto.EndAt > b.StartAt);
-
-        if (isOverlapped)
-            return BadRequest(new { message = "Xe đã có lịch được đặt trong khoảng thời gian này." });
-
-        // 4. Kiểm tra thông tin người dùng
-        var customer = await _db.AppUsers.FirstOrDefaultAsync(x => x.Id == customerId);
-
-        if (customer == null)
-            return Unauthorized(new { message = "Không tìm thấy thông tin người thuê." });
 
         var owner = await _db.AppUsers.FirstOrDefaultAsync(x => x.Id == car.OwnerId);
         if (owner == null)
@@ -228,12 +215,28 @@ BÊN THUÊ
         if (owner.Id == customerId)
             return BadRequest(new { message = "Bạn không thể tự thuê xe của chính mình." });
 
-        var rentalDays = (decimal)(dto.EndAt - dto.StartAt).TotalDays;
-        if (rentalDays < 1) rentalDays = 1; // Tính tối thiểu 1 ngày 
+        // ==================== KIỂM TRA TRÙNG LỊCH ====================
+        var isOverlapped = await _db.Bookings.AnyAsync(b =>
+            b.CarId == dto.CarId &&
+            (b.Status == BookingStatus.WaitingForDeposit ||
+             b.Status == BookingStatus.Confirmed ||
+             b.Status == BookingStatus.PickedUp) &&
+            dto.StartAt < b.EndAt &&
+            dto.EndAt > b.StartAt);
 
-        // Tính tổng tiền dựa trên giá thuê, bảo hiểm, số ngày và giảm giá
+        if (isOverlapped)
+            return BadRequest(new { message = "Xe đã có lịch được đặt trong khoảng thời gian này." });
+
+        var customer = await _db.AppUsers.FirstOrDefaultAsync(x => x.Id == customerId);
+        if (customer == null)
+            return Unauthorized(new { message = "Không tìm thấy thông tin người thuê." });
+
+        var rentalDays = (decimal)(dto.EndAt - dto.StartAt).TotalDays;
+        if (rentalDays < 1) rentalDays = 1;
+
         var calculatedTotal = (car.PricePerDay + dto.InsurancePerDay) * (decimal)Math.Ceiling(rentalDays) - dto.DiscountAmount;
 
+        // ==================== TẠO BOOKING ====================
         var booking = new Booking
         {
             Id = Guid.NewGuid(),
@@ -245,9 +248,7 @@ BÊN THUÊ
             EndAt = dto.EndAt,
 
             PickupType = dto.PickupType,
-            PickupAddress = string.IsNullOrWhiteSpace(dto.PickupAddress)
-                ? car.Address
-                : dto.PickupAddress.Trim(),
+            PickupAddress = string.IsNullOrWhiteSpace(dto.PickupAddress) ? car.Address : dto.PickupAddress.Trim(),
 
             Note = string.IsNullOrWhiteSpace(dto.Note) ? null : dto.Note.Trim(),
 
@@ -270,23 +271,45 @@ BÊN THUÊ
             CustomerAgreedAt = DateTime.UtcNow,
             CustomerAgreementReason = "Tôi đồng ý thuê xe",
 
-            OwnerAgreedTerms = false,
-            OwnerAgreedAt = null,
-            OwnerAgreementReason = null,
+            // === TỰ ĐỘNG DUYỆT CHO CHỦ XE ===
+            OwnerAgreedTerms = true,
+            OwnerAgreedAt = DateTime.UtcNow,
+            OwnerAgreementReason = "Hệ thống tự động xác nhận để khách thanh toán ngay",
 
-            Status = BookingStatus.Pending,
+            Status = BookingStatus.WaitingForDeposit,
             CreatedAt = DateTime.UtcNow
         };
 
         booking.ContractSnapshot = BuildContractSnapshot(booking);
 
+        // Tạo RentalAgreement luôn
+        var contractNumber = GenerateContractNumber(booking.Id);
+        var pdfUrl = await _pdfService.GenerateAsync(booking);
+
+        var agreement = new RentalAgreement
+        {
+            Id = Guid.NewGuid(),
+            BookingId = booking.Id,
+            AgreementContent = booking.ContractSnapshot,
+            CustomerAccepted = true,
+            CustomerAcceptedAt = booking.CustomerAgreedAt,
+            OwnerAccepted = true,
+            OwnerAcceptedAt = booking.OwnerAgreedAt,
+            ContractNumber = contractNumber,
+            PdfUrl = pdfUrl,
+            CreatedAt = DateTime.UtcNow
+        };
+
         _db.Bookings.Add(booking);
+        _db.RentalAgreements.Add(agreement);
+
         await _db.SaveChangesAsync();
 
         return Ok(new
         {
             booking.Id,
-            message = "Đã gửi yêu cầu thuê xe."
+            message = "Đơn đặt xe đã được tạo thành công. Vui lòng thanh toán để giữ chỗ.",
+            status = BookingStatus.WaitingForDeposit.ToString()
         });
     }
 
@@ -622,7 +645,7 @@ BÊN THUÊ
             .OrderByDescending(x => x.CreatedAt)
             .Select(x => new
             {
-                x.Id,
+               
                 x.BookingId,
                 x.ContractNumber,
                 x.PdfUrl,

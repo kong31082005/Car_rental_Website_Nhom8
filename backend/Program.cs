@@ -48,6 +48,7 @@ builder.Services.AddSwaggerGen(c =>
 });
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IContractPdfService, ContractPdfService>();
+builder.Services.AddHostedService<AutoCancelBookingService>();
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {

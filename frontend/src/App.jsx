@@ -22,7 +22,7 @@ import CreatePost from "./pages/CreatePost.jsx";
 import AdminCommunityFeed from "./pages/AdminScreens/AdminCommunityFeed.jsx";
 import BookingDetail from "./pages/BookingDetail.jsx";
 import MyBookings from "./pages/MyBookings.jsx";
-
+import ProfileUser from "./pages/ProfileUser.jsx";
 function App() {
   return (
     <BrowserRouter>
@@ -56,6 +56,7 @@ function App() {
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/my-bookings"
           element={
@@ -69,6 +70,14 @@ function App() {
           element={
             <ProtectedRoute>
               <BookingDetail />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <ProfileUser />
             </ProtectedRoute>
           }
         />

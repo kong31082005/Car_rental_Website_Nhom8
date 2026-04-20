@@ -480,7 +480,7 @@ function CarDetail() {
       };
 
       const result = await createBooking(payload);
-      toast.success("Đặt xe thành công! Vui lòng chờ chủ xe xác nhận.");
+      toast.success("Đặt xe thành công! Vui lòng thanh toán để giữ xe.");
       navigate(`/bookings/${result.id}`);
     } catch (error) {
       toast.error(error.message || "Đặt xe thất bại, vui lòng thử lại.");

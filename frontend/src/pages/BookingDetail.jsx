@@ -138,6 +138,9 @@ function BookingDetail() {
         setLoading(true);
         const data = await getBookingDetail(id);
         setBooking(data);
+        console.log("=== BOOKING DETAIL ===");
+        console.log("ownerAgreedAt:", data.ownerAgreedAt);
+        console.log("status:", data.status);
       } catch (err) {
         setError(err.message || "Không tải được đơn thuê.");
       } finally {
@@ -146,6 +149,56 @@ function BookingDetail() {
     };
     if (id) fetch();
   }, [id]);
+
+  const CountdownTimer = ({ approvedAt, timeoutMinutes = 15 }) => {
+    const [timeLeft, setTimeLeft] = useState("");
+    const [isExpired, setIsExpired] = useState(false);
+
+    useEffect(() => {
+      if (!approvedAt) return;
+
+      console.log("ownerAgreedAt (raw):", approvedAt);
+
+      // Ép đúng UTC để tránh lệch múi giờ
+      const approvedUTC = new Date(approvedAt + "Z"); // Thêm "Z" để buộc UTC
+      const endTime = approvedUTC.getTime() + timeoutMinutes * 60 * 1000;
+
+      console.log("End time (UTC):", new Date(endTime).toISOString());
+
+      const interval = setInterval(() => {
+        const remaining = endTime - Date.now();
+
+        if (remaining <= 0) {
+          setTimeLeft("00:00");
+          setIsExpired(true);
+          clearInterval(interval);
+          return;
+        }
+
+        const minutes = Math.floor(remaining / 60000);
+        const seconds = Math.floor((remaining % 60000) / 1000);
+        setTimeLeft(`${minutes}:${seconds < 10 ? "0" : ""}${seconds}`);
+      }, 1000);
+
+      return () => clearInterval(interval);
+    }, [approvedAt, timeoutMinutes]);
+
+    return (
+      <div
+        style={{
+          color: isExpired ? "#ef4444" : "#facc15",
+          fontWeight: "700",
+          margin: "12px 0",
+          fontSize: "1.1rem",
+        }}
+      >
+        ⏳{" "}
+        {isExpired
+          ? "Đơn đã hết hạn thanh toán"
+          : `Còn ${timeLeft} để thanh toán`}
+      </div>
+    );
+  };
 
   const handlePayOS = async () => {
     try {
@@ -162,6 +215,7 @@ function BookingDetail() {
       setPayLoading(false);
     }
   };
+
   const handlePrintContract = () => {
     const printWindow = window.open("", "_blank");
     printWindow.document.write(`
@@ -489,17 +543,19 @@ function BookingDetail() {
                   <div className="bd-cta-icon">
                     <CreditCard size={22} color="#fff" />
                   </div>
-                  <div className="bd-cta-title">Đơn đã được duyệt!</div>
-                  <div className="bd-cta-desc">
-                    Vui lòng thanh toán để hoàn tất đặt chỗ. Đơn sẽ tự động huỷ
-                    nếu quá hạn.
-                  </div>
+                  <div className="bd-cta-title">Sẵn sàng thanh toán!</div>
+
+                  <CountdownTimer
+                    approvedAt={booking.ownerAgreedAt || booking.createdAt}
+                    timeoutMinutes={15}
+                  />
+
                   <button
                     className="bd-pay-btn"
                     onClick={handlePayOS}
                     disabled={payLoading}
                   >
-                    {payLoading ? "Đang kết nối..." : "Thanh toán ngay"}
+                    Thanh toán ngay để giữ xe
                   </button>
                 </div>
               )}

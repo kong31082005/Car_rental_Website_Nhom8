@@ -15,6 +15,7 @@ import {
   XCircle,
   AlertCircle,
   Search,
+  Clock,
 } from "lucide-react";
 
 // ─── Status config ────────────────────────────────────────────────────
@@ -61,23 +62,24 @@ const STATUS_MAP = {
     bg: "#f9fafb",
     icon: XCircle,
   },
+  Expired: {
+    label: "Đã hết hạn",
+    color: "#ef4444",
+    bg: "#fef2f2",
+    icon: Clock,
+  },
 };
 
 const TABS = [
   { key: "all", label: "Tất cả" },
   { key: "active", label: "Đang diễn ra" },
   { key: "completed", label: "Hoàn thành" },
-  { key: "cancelled", label: "Đã huỷ / Từ chối" },
+  { key: "cancelled", label: "Đã huỷ / Hết " },
 ];
 
-const ACTIVE_STATUSES = [
-  "Pending",
-  "WaitingForDeposit",
-  "Confirmed",
-  "PickedUp",
-];
+const ACTIVE_STATUSES = ["WaitingForDeposit", "Confirmed", "PickedUp"];
 const DONE_STATUSES = ["Completed"];
-const CANCELLED_STATUSES = ["Rejected", "Cancelled"];
+const CANCELLED_STATUSES = ["Rejected", "Cancelled", "Expired"];
 
 function formatVND(value) {
   if (!value && value !== 0) return "—";
