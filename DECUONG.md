@@ -14,8 +14,8 @@ Hệ thống thuê xe tự lái là nền tảng cho phép:
 Ngoài các chức năng cơ bản, hệ thống còn tích hợp:
 
 - Yêu thích xe  
-- Nhắn tin thời gian thực  
 - Thông báo  
+- Thanh toán online (PayOS)  
 - Điểm thưởng & voucher  
 - Hệ thống bài viết cộng đồng  
 
@@ -30,7 +30,7 @@ Ngoài các chức năng cơ bản, hệ thống còn tích hợp:
 
 | Module | Mô tả |
 |-------|------|
-| Messaging | Nhắn tin giữa người dùng |
+| Payment | Thanh toán online qua PayOS |
 | Notification | Thông báo hệ thống |
 | Reward System | Điểm thưởng & voucher |
 | Admin Management | Quản lý hệ thống |
@@ -38,6 +38,7 @@ Ngoài các chức năng cơ bản, hệ thống còn tích hợp:
 ---
 
 ## 3. 🧱 Kiến trúc hệ thống
+
 [ Web Client ] <----> [ ASP.NET Core API ] <----> [ SQL Server ]
 
 | Thành phần | Công nghệ |
@@ -61,9 +62,9 @@ Ngoài các chức năng cơ bản, hệ thống còn tích hợp:
 
 - Tìm kiếm xe  
 - Đặt thuê xe  
+- Thanh toán đơn thuê  
 - Xem hợp đồng  
 - Yêu thích xe  
-- Nhắn tin với chủ xe  
 - Nhận thông báo  
 - Tích điểm & sử dụng voucher  
 - Quản lý tài khoản  
@@ -76,10 +77,10 @@ Ngoài các chức năng cơ bản, hệ thống còn tích hợp:
 - Quản lý xe (thêm / sửa / xóa)  
 - Duyệt / từ chối đơn thuê  
 - Quản lý hợp đồng  
-- Nhắn tin với khách thuê  
 - Quản lý người dùng  
 - Quản lý bài viết / tin tức  
 - Quản lý voucher / khuyến mãi  
+- Nhận thông báo
 - Giám sát hệ thống  
 
 ---
@@ -111,19 +112,16 @@ Ngoài các chức năng cơ bản, hệ thống còn tích hợp:
 
 ---
 
-### 5.3 💬 Nhắn tin (Messaging System)
+### 5.3 💳 Thanh toán (Payment System)
 
-| Thành phần | Mô tả |
-|-----------|------|
-| Conversation | Cuộc hội thoại |
-| Participant | Người tham gia |
-| Message | Tin nhắn |
+| Chức năng | Mô tả |
+|----------|------|
+| Tạo link thanh toán | Gọi PayOS |
+| Thanh toán online | Redirect tới PayOS |
+| Xử lý webhook | Xác nhận giao dịch |
+| Cập nhật đơn | Status → Confirmed |
 
-Chức năng:
-
-- Chat giữa Customer ↔ Admin  
-- Gửi / nhận tin nhắn  
-- Lưu lịch sử  
+👉 Tích hợp PayOS để xử lý thanh toán thực tế  
 
 ---
 
@@ -133,12 +131,12 @@ Chức năng:
 |--------|------|
 | Booking mới | Có đơn thuê |
 | Duyệt / từ chối | Cập nhật trạng thái |
-| Tin nhắn | Có message mới |
+| Thanh toán thành công | Xác nhận đơn |
 
 | Loại | Giá trị |
 |-----|--------|
 | Booking | Đơn thuê |
-| Message | Tin nhắn |
+| Payment | Thanh toán |
 | System | Hệ thống |
 
 ---
@@ -147,7 +145,7 @@ Chức năng:
 
 | Chức năng | Mô tả |
 |----------|------|
-| Tạo hợp đồng | Khi duyệt đơn |
+| Tạo hợp đồng | Sau khi thanh toán |
 | Hiển thị | Text + PDF |
 | Nội dung | Xe, thời gian, chi phí |
 
@@ -185,8 +183,9 @@ Bao gồm:
 
 | Chức năng | Mô tả |
 |----------|------|
-| Tích điểm | Sau khi hoàn thành chuyến |
-| Đổi voucher | Giảm giá |
+| Tích điểm | Sau mỗi chuyến thuê |
+| Đổi voucher | Sử dụng điểm |
+| Áp mã | Giảm giá khi thuê |
 
 ---
 
@@ -211,13 +210,12 @@ Admin có thể:
 | Booking | Đơn thuê |
 | RentalAgreement | Hợp đồng |
 | FavoriteCar | Xe yêu thích |
-| Conversation | Chat |
-| Message | Tin nhắn |
 | Notification | Thông báo |
 | Post | Bài viết |
 | PostLike | Like |
 | PostComment | Comment |
 | Voucher | Voucher |
+| Payment | Thanh toán |
 
 ---
 
@@ -227,7 +225,8 @@ Admin có thể:
 |--------|--------|
 | Pending | Chờ duyệt |
 | Approved | Đã duyệt |
-| Rejected | Từ chối |
+| WaitingForPayment | Chờ thanh toán |
+| Confirmed | Đã thanh toán |
 | InProgress | Đang thuê |
 | Completed | Hoàn thành |
 
@@ -238,7 +237,9 @@ Admin có thể:
 | Vai trò | Hành động |
 |--------|----------|
 | Customer | Đồng ý hợp đồng |
-| Admin | Duyệt đơn = xác nhận |
+| Admin | Duyệt đơn |
+
+👉 Thanh toán thành công = xác nhận hợp đồng  
 
 ---
 
@@ -249,9 +250,9 @@ Admin có thể:
 - Home  
 - Car Detail  
 - Booking  
+- Payment  
 - Contract  
 - Favorite Cars  
-- Messages  
 - Notifications  
 - Profile  
 
@@ -278,8 +279,9 @@ Admin có thể:
 | Database | SQL Server |
 | ORM | Entity Framework Core |
 | Auth | JWT |
+| Payment | PayOS |
 | PDF | PDF Service |
-| Realtime | SignalR |
+| Realtime | (Optional) |
 
 ---
 
@@ -288,16 +290,15 @@ Admin có thể:
 - Phân quyền rõ ràng (Customer - Admin)  
 - Quy trình thuê xe thực tế  
 - Hợp đồng điện tử  
-- Chat realtime  
+- Thanh toán online tích hợp PayOS  
 - Notification system  
-- Reward system  
+- Reward & voucher system  
 - Social features  
 
 ---
 
 ## 12. 🔮 Hướng phát triển
 
-- Thanh toán online  
 - AI gợi ý xe  
 - Bản đồ  
 - Ký số nâng cao  
