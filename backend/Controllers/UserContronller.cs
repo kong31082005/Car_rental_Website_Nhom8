@@ -85,7 +85,7 @@ public class UserController : ControllerBase
     // --- DÀNH CHO ADMIN ---
 
     [HttpGet("all")]
-    [Authorize(Roles = "Admin")] // Chỉ Admin mới có quyền xem tất cả
+    [Authorize(Roles = "Owner,Admin")] // Chỉ Admin mới có quyền xem tất cả
     public async Task<IActionResult> GetAllUsers()
     {
         var users = await _db.AppUsers
@@ -105,7 +105,7 @@ public class UserController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Admin")] // Chỉ Admin mới có quyền xóa
+    [Authorize(Roles = "Owner,Admin")] // Chỉ Admin mới có quyền xóa
     public async Task<IActionResult> DeleteUser(Guid id)
     {
         var user = await _db.AppUsers.FindAsync(id);
