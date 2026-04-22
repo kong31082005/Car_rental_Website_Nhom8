@@ -350,7 +350,7 @@ function CustomerHeader() {
             </Link>
 
             <div className="header-right">
-              <a href="#" className="nav-link-custom">
+              <a href="/home" className="nav-link-custom">
                 Về Kongcars
               </a>
 
