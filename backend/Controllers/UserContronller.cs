@@ -117,7 +117,7 @@ public class UserController : ControllerBase
 
         return Ok(new { message = "Đã xóa người dùng thành công" });
     }
-
+    // api/user/change-password
     [HttpPut("change-password")]
     public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto)
     {

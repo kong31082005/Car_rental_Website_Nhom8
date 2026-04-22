@@ -11,18 +11,17 @@ import {
 
 function BookingManagement() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("Pending"); // Mặc định là đơn đang chờ
+  const [activeTab, setActiveTab] = useState("WaitingForDeposit");
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(false);
 
   // Danh sách các trạng thái
   const tabs = [
-    { id: "Pending", label: "Đang chờ", icon: "⏳" },
     { id: "WaitingForDeposit", label: "Chờ thanh toán", icon: "💰" },
     { id: "Confirmed", label: "Đã xác nhận", icon: "✅" },
     { id: "PickedUp", label: "Đang thuê", icon: "🚗" },
     { id: "Completed", label: "Hoàn thành", icon: "🏁" },
-    { id: "Rejected", label: "Từ chối", icon: "❌" },
+    { id: "Expired", label: "Đã hết hạn", icon: "⏰" },
     { id: "Cancelled", label: "Đã hủy", icon: "🚫" },
   ];
 
@@ -261,25 +260,6 @@ function BookingManagement() {
 
                 {/* Nhóm nút bấm điều khiển */}
                 <div className="actions-group">
-                  {activeTab === "Pending" && (
-                    <>
-                      <button
-                        className="btn-action btn-approve"
-                        onClick={() =>
-                          handleStatusChange(booking.id, "approve")
-                        }
-                      >
-                        Duyệt yêu cầu
-                      </button>
-                      <button
-                        className="btn-action btn-reject"
-                        onClick={() => handleStatusChange(booking.id, "reject")}
-                      >
-                        Từ chối
-                      </button>
-                    </>
-                  )}
-
                   {activeTab === "Confirmed" && (
                     <button
                       className="btn-action btn-approve"

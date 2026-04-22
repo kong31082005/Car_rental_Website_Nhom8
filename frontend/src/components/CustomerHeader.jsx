@@ -4,17 +4,28 @@ import { Link, useNavigate } from "react-router-dom";
 import { Heart, MessageCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import NotificationBell from "./NotificationBell";
+import { getMyProfileApi } from "../services/authService";
 
 function CustomerHeader() {
   const navigate = useNavigate();
   const [showDropdown, setShowDropdown] = useState(false);
-
-  const token = localStorage.getItem("token");
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem("token"));
+  const [userProfile, setUserProfile] = useState(null);
+
+  // Fetch user profile when logged in
+  useEffect(() => {
+    if (isLoggedIn) {
+      getMyProfileApi()
+        .then((data) => setUserProfile(data))
+        .catch(() => setUserProfile(null));
+    }
+  }, [isLoggedIn]);
 
   useEffect(() => {
     const syncAuth = () => {
-      setIsLoggedIn(!!localStorage.getItem("token"));
+      const loggedIn = !!localStorage.getItem("token");
+      setIsLoggedIn(loggedIn);
+      if (!loggedIn) setUserProfile(null);
     };
 
     window.addEventListener("auth-changed", syncAuth);
@@ -26,13 +37,23 @@ function CustomerHeader() {
     };
   }, []);
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest(".avatar-box-wrapper")) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const requireLogin = (callback) => {
     if (!isLoggedIn) {
       alert("Bạn cần đăng nhập để sử dụng chức năng này.");
       navigate("/login");
       return;
     }
-
     callback?.();
   };
 
@@ -42,6 +63,8 @@ function CustomerHeader() {
     setShowDropdown(false);
     navigate("/home");
   };
+
+  const displayName = userProfile?.fullName || "Tài khoản";
 
   return (
     <>
@@ -148,6 +171,10 @@ function CustomerHeader() {
           margin-left: 18px;
         }
 
+        .avatar-box-wrapper {
+          position: relative;
+        }
+
         .avatar-box {
           display: flex;
           align-items: center;
@@ -155,6 +182,8 @@ function CustomerHeader() {
           padding-left: 14px;
           margin-left: 14px;
           border-left: 1px solid #e5e7eb;
+          cursor: pointer;
+          user-select: none;
         }
 
         .avatar-img {
@@ -205,46 +234,77 @@ function CustomerHeader() {
           background: #f9fafb;
         }
 
-        .avatar-box-wrapper {
-          position: relative;
-        }
-
-        .avatar-box {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          padding-left: 14px;
-          margin-left: 14px;
-          border-left: 1px solid #e5e7eb;
-          cursor: pointer;
-        }
-
+        /* ── Dropdown ── */
         .avatar-dropdown {
           position: absolute;
-          top: calc(100% + 10px);
+          top: calc(100% + 12px);
           right: 0;
           background: #fff;
           border: 1px solid #e5e7eb;
-          border-radius: 12px;
-          box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+          border-radius: 14px;
+          box-shadow: 0 12px 36px rgba(0, 0, 0, 0.12);
           overflow: hidden;
           z-index: 999;
-          min-width: 160px;
+          min-width: 190px;
+          animation: dropIn 0.18s ease;
         }
 
-        .avatar-dropdown button {
+        @keyframes dropIn {
+          from { opacity: 0; transform: translateY(-6px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .dropdown-header {
+          padding: 14px 16px 10px;
+          border-bottom: 1px solid #f3f4f6;
+        }
+
+        .dropdown-name {
+          font-weight: 700;
+          font-size: 0.95rem;
+          color: #111827;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .dropdown-subtitle {
+          font-size: 0.75rem;
+          color: #9ca3af;
+          margin-top: 2px;
+        }
+
+        .dropdown-item {
           width: 100%;
-          padding: 12px 16px;
+          padding: 11px 16px;
           border: none;
           background: #fff;
           text-align: left;
           cursor: pointer;
           font-weight: 600;
+          font-size: 0.88rem;
+          color: #374151;
+          display: flex;
+          align-items: center;
+          gap: 9px;
+          transition: background 0.15s;
+          text-decoration: none;
         }
 
-        .avatar-dropdown button:hover {
+        .dropdown-item:hover {
           background: #f9fafb;
+          color: #16a34a;
+        }
+
+        .dropdown-item.danger:hover {
+          background: #fff1f2;
           color: #ef4444;
+        }
+
+        .dropdown-divider {
+          height: 1px;
+          background: #f3f4f6;
+          margin: 4px 0;
         }
 
         @media (max-width: 991.98px) {
@@ -339,6 +399,7 @@ function CustomerHeader() {
                     </button>
                   </div>
 
+                  {/* ── Avatar + Dropdown ── */}
                   <div className="avatar-box-wrapper">
                     <div
                       className="avatar-box"
@@ -349,13 +410,65 @@ function CustomerHeader() {
                         alt="avatar"
                         className="avatar-img"
                       />
-                      <span className="fw-semibold">Nguyễn Văn Công</span>
+                      <span className="fw-semibold">{displayName}</span>
                       <span>▾</span>
                     </div>
 
                     {showDropdown && (
                       <div className="avatar-dropdown">
-                        <button onClick={handleLogout}>Đăng xuất</button>
+                        {/* Tên người dùng trong dropdown */}
+                        <div className="dropdown-header">
+                          <div className="dropdown-name">{displayName}</div>
+                          <div className="dropdown-subtitle">
+                            {userProfile?.email || ""}
+                          </div>
+                        </div>
+
+                        {/* Thông tin cá nhân */}
+                        <Link
+                          to="/profile"
+                          className="dropdown-item"
+                          onClick={() => setShowDropdown(false)}
+                        >
+                          <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                            <circle cx="12" cy="7" r="4" />
+                          </svg>
+                          Thông tin cá nhân
+                        </Link>
+
+                        <div className="dropdown-divider" />
+
+                        {/* Đăng xuất */}
+                        <button
+                          className="dropdown-item danger"
+                          onClick={handleLogout}
+                        >
+                          <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                            <polyline points="16 17 21 12 16 7" />
+                            <line x1="21" y1="12" x2="9" y2="12" />
+                          </svg>
+                          Đăng xuất
+                        </button>
                       </div>
                     )}
                   </div>
