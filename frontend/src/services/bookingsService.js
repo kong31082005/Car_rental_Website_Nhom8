@@ -138,3 +138,15 @@ export const createPayOSLink = async (id) => {
     throw new Error(error.response?.data?.message || "Lỗi kết nối PayOS");
   }
 };
+
+// 12. Lấy danh sách đơn hàng gần đây của chủ xe (mặc định 3 đơn)
+export const getRecentOwnerBookings = async (limit = 3) => {
+  try {
+    const data = await getOwnerBookings();
+    return data.slice(0, limit);
+  } catch (error) {
+    throw new Error(
+      error.message || "Không thể tải danh sách đơn hàng gần đây",
+    );
+  }
+};

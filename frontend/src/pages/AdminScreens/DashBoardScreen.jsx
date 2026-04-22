@@ -1,6 +1,7 @@
-import { useMemo, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getMyCars } from "../../services/carsService";
+import { getRecentOwnerBookings } from "../../services/bookingsService"; // Import service lấy đơn hàng
 import { BASE_URL } from "../../constants/config";
 
 function Dashboard() {
@@ -16,54 +17,83 @@ function Dashboard() {
   const [cars, setCars] = useState([]);
   const [selectedBrand, setSelectedBrand] = useState("all");
 
-  const orders = [
-    {
-      id: 1,
-      carName: "Toyota Vios 2023",
-      user: "Nguyễn Văn A",
-      time: "08/04/2026",
-      status: "Chờ duyệt",
-    },
-    {
-      id: 2,
-      carName: "KIA Sonet 2024",
-      user: "Trần Thị B",
-      time: "09/04/2026",
-      status: "Đã xác nhận",
-    },
-    {
-      id: 3,
-      carName: "Ford Everest 2024",
-      user: "Lê Văn C",
-      time: "10/04/2026",
-      status: "Hoàn thành",
-    },
-  ];
+  // Thay thế dữ liệu mẫu bằng State
+  const [recentOrders, setRecentOrders] = useState([]);
 
   useEffect(() => {
-    const fetchCars = async () => {
+    const fetchData = async () => {
       try {
-        const data = await getMyCars();
-        setCars(data);
+        // Lấy danh sách xe
+        const carsData = await getMyCars();
+        setCars(carsData);
+
+        // Lấy 3 đơn hàng gần đây
+        const ordersData = await getRecentOwnerBookings(3);
+        setRecentOrders(ordersData);
       } catch (error) {
-        console.error("Lỗi khi lấy danh sách xe:", error);
+        console.error("Lỗi khi lấy dữ liệu Dashboard:", error);
       }
     };
-    fetchCars();
+    fetchData();
   }, []);
 
   const filteredCars = cars;
 
-  const getStatusClass = (status) => {
-    if (status === "Chờ duyệt") return "status-pending";
-    if (status === "Đã xác nhận") return "status-approved";
-    if (status === "Hoàn thành") return "status-completed";
-    return "";
+  // Hàm chuyển đổi trạng thái từ Backend sang Tiếng Việt và CSS Class
+  const getStatusInfo = (status) => {
+    // ép kiểu về string nếu backend trả về số hoặc chuỗi
+    const statusKey = String(status);
+
+    switch (statusKey) {
+      case "0":
+      case "Pending":
+        return { label: "Chờ duyệt", className: "status-pending" };
+      case "1":
+      case "Rejected":
+        return { label: "Đã từ chối", className: "status-rejected" };
+      case "2":
+      case "WaitingForDeposit":
+        return { label: "Chờ đặt cọc", className: "status-waiting" };
+      case "3":
+      case "Confirmed":
+        return { label: "Đã xác nhận", className: "status-confirmed" };
+      case "4":
+      case "PickedUp":
+        return { label: "Đang thuê", className: "status-pickedup" };
+      case "5":
+      case "Completed":
+        return { label: "Hoàn thành", className: "status-completed" };
+      case "6":
+      case "Cancelled":
+        return { label: "Đã hủy", className: "status-cancelled" };
+      case "7":
+      case "Expired":
+        return { label: "Quá hạn", className: "status-expired" };
+      case "8":
+      case "PendingSettlement":
+        return { label: "Chờ quyết toán", className: "status-settlement" };
+      default:
+        return { label: "Không xác định", className: "" };
+    }
+  };
+
+  // Hàm format ngày tháng từ chuỗi ISO
+  const formatDate = (dateString) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
   return (
     <>
       <style>{`
+
         .welcome-card {
           background: linear-gradient(135deg, #0f172a, #1d4ed8);
           border-radius: 28px;
@@ -85,6 +115,16 @@ function Dashboard() {
           background: rgba(255,255,255,0.08);
         }
 
+        .status-pill { padding: 6px 14px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; display: inline-block; }
+        .status-pending { background: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
+        .status-waiting { background: #fff7ed; color: #c2410c; border: 1px solid #ffedd5; }
+        .status-confirmed { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+        .status-pickedup { background: #e0e7ff; color: #4338ca; border: 1px solid #c7d2fe; }
+        .status-completed { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+        .status-rejected { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
+        .status-cancelled { background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; }
+        .status-expired { background: #fef2f2; color: #991b1b; border: 1px solid #fee2e2; }
+        .status-settlement { background: #f5f3ff; color: #6d28d9; border: 1px solid #ddd6fe; }
         .welcome-title {
           font-size: 2rem;
           font-weight: 900;
@@ -288,7 +328,13 @@ function Dashboard() {
       <div className="section-card">
         <div className="section-head">
           <h2 className="section-title">Đơn hàng gần đây</h2>
-          <div className="section-link">Xem tất cả</div>
+          <div
+            className="section-link"
+            onClick={() => navigate("/admin/orders")}
+            style={{ cursor: "pointer" }}
+          >
+            Xem tất cả
+          </div>
         </div>
         <div style={{ overflowX: "auto" }}>
           <table className="orders-table">
@@ -302,21 +348,34 @@ function Dashboard() {
               </tr>
             </thead>
             <tbody>
-              {orders.map((order) => (
-                <tr key={order.id}>
-                  <td>#{order.id}</td>
-                  <td>{order.carName}</td>
-                  <td>{order.user}</td>
-                  <td>{order.time}</td>
-                  <td>
-                    <span
-                      className={`status-pill ${getStatusClass(order.status)}`}
-                    >
-                      {order.status}
-                    </span>
+              {recentOrders.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan="5"
+                    style={{ textAlign: "center", color: "#6b7280" }}
+                  >
+                    Chưa có đơn hàng nào
                   </td>
                 </tr>
-              ))}
+              ) : (
+                recentOrders.map((order) => {
+                  const statusInfo = getStatusInfo(order.status);
+                  return (
+                    <tr key={order.id}>
+                      {/* Cắt ngắn GUID lấy 8 ký tự đầu cho gọn */}
+                      <td>#{order.id.substring(0, 8).toUpperCase()}</td>
+                      <td>{order.carNameSnapshot}</td>
+                      <td>{order.customerNameSnapshot}</td>
+                      <td>{formatDate(order.createdAt)}</td>
+                      <td>
+                        <span className={`status-pill ${statusInfo.className}`}>
+                          {statusInfo.label}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
