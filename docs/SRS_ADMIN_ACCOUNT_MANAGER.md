@@ -4,7 +4,7 @@
 
 **Mã chức năng:** ADMIN-01  
 **Trạng thái:** Draft / Review  
-**Người soạn thảo:** [Gemini Code Assist]  
+**Người soạn thảo:** VŨ TRƯỜNG GIANG  
 **Vai trò:** Developer / Analyst
 
 ---
