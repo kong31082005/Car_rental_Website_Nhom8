@@ -310,9 +310,9 @@ Chức năng này cho phép chủ xe chỉnh sửa các thông số kỹ thuật
 flowchart TD
     A[Mở form chỉnh sửa] --> B[Thay đổi thông tin xe]
     B --> C{Nhấn Cập nhật}
-    C --> D[Gửi request PUT /api/cars/{id}]
+    C --> D["Gửi request PUT /api/cars/{id}"]
     D --> E{Backend Check Owner}
-    E -->|Không phải chủ xe| F[Trả về 404/403: Không có quyền]
+    E -->|Không phải chủ xe| F["Trả về 404/403: Không có quyền"]
     E -->|Hợp lệ| G[Validate & Trim dữ liệu mới]
     G --> H[Update bản ghi vào bảng Cars]
     H --> I[Trả về 200 OK]
