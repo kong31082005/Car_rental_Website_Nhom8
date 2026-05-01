@@ -1,7 +1,45 @@
+import React, { useState, useEffect } from "react";
+import { getMyProfileApi } from "../services/authService";
 function AdminSidebar({ menus, currentPath, onMenuClick }) {
+  // Tạo state để lưu thông tin admin
+  const [adminInfo, setAdminInfo] = useState({
+    fullName: "Đang tải...",
+    role: "...",
+  });
+
+  // Gọi API lấy thông tin profile khi component được mount
+  useEffect(() => {
+    const fetchAdminProfile = async () => {
+      try {
+        const data = await getMyProfileApi();
+        setAdminInfo({
+          fullName: data.fullName,
+          // Bạn có thể việt hóa Role từ backend trả về nếu muốn
+          role: data.role === "Admin" ? "Quản trị viên hệ thống" : data.role,
+        });
+      } catch (error) {
+        console.error("Lỗi khi lấy thông tin admin:", error.message);
+        setAdminInfo({
+          fullName: "Lỗi hiển thị",
+          role: "Không xác định",
+        });
+      }
+    };
+
+    fetchAdminProfile();
+  }, []);
+
+  // Lấy chữ cái đầu tiên của tên để làm Avatar (nếu chưa có tên thì để trống)
+  const avatarLetter =
+    adminInfo.fullName !== "Đang tải..." &&
+    adminInfo.fullName !== "Lỗi hiển thị"
+      ? adminInfo.fullName.charAt(0).toUpperCase()
+      : "";
+
   return (
     <>
       <style>{`
+        /* Giữ nguyên toàn bộ CSS cũ của bạn */
         .admin-sidebar {
           background: #0f172a;
           color: #fff;
@@ -115,10 +153,13 @@ function AdminSidebar({ menus, currentPath, onMenuClick }) {
         </div>
 
         <div className="admin-profile">
-          <div className="admin-avatar">C</div>
+          {/* Cập nhật Avatar linh hoạt theo chữ cái đầu của tên */}
+          <div className="admin-avatar">{avatarLetter}</div>
+
+          {/* THAY ĐỔI Ở ĐÂY: Hiển thị dữ liệu thực tế */}
           <div className="admin-info">
-            <div className="admin-name">Nguyễn Văn Công</div>
-            <div className="admin-role">Quản trị viên hệ thống</div>
+            <div className="admin-name">{adminInfo.fullName}</div>
+            <div className="admin-role">{adminInfo.role}</div>
           </div>
         </div>
 

@@ -1,30 +1,29 @@
 # Software Requirement Specification (SRS)
 
-## Chức năng: Quản lý tài khoản Admin
+## Chức năng: Quản lý tài khoản người dùng
 
-**Mã chức năng:** ADMIN-01  
+**Mã chức năng:** USER-01  
 **Trạng thái:** Draft / Review  
-**Người soạn thảo:** [Gemini Code Assist]  
+**Người soạn thảo:** VŨ TRƯỜNG GIANG  
 **Vai trò:** Developer / Analyst
 
 ---
 
 ### 1. Mô tả tổng quan (Description)
 
-Chức năng này cho phép Quản trị viên (Admin) quản lý thông tin tài khoản cá nhân của mình, cụ thể hiện tại tập trung vào việc thay đổi mật khẩu để đảm bảo tính bảo mật cho quyền quản trị cao nhất. Hệ thống yêu cầu xác thực mật khẩu cũ và thiết lập mật khẩu mới theo các tiêu chuẩn bảo mật của hệ thống.
+Chức năng này tập trung vào việc quản lý quyền truy cập thông qua cơ chế khóa tài khoản. Nó cho phép Quản trị viên (Admin) vô hiệu hóa quyền truy cập của một người dùng bất kỳ (Customer hoặc Owner) vào hệ thống. Khi thực hiện thao tác này, trạng thái hoạt động của tài khoản sẽ được chuyển về `IsActive = false`. Người dùng có tài khoản bị khóa sẽ không thể đăng nhập hoặc thực hiện bất kỳ thao tác nào yêu cầu xác thực.
 
 ---
 
 ### 2. Luồng nghiệp vụ (User Workflow)
 
-| Bước | Hành động của Admin                                     | Phản hồi hệ thống                                              |
-| :--- | :------------------------------------------------------ | :------------------------------------------------------------- |
-| 1    | Truy cập trang "Quản lý tài khoản Admin"                | Hiển thị giao diện thay đổi mật khẩu                           |
-| 2    | Nhập mật khẩu cũ, mật khẩu mới và xác nhận mật khẩu mới | Kiểm tra tính hợp lệ sơ bộ (Format, độ dài)                    |
-| 3    | Nhấn nút "Lưu thay đổi"                                 | Gửi request PUT đến API hệ thống kèm JWT Token                 |
-| 4    | Backend xử lý yêu cầu                                   | Xác thực mật khẩu cũ và cập nhật mật khẩu mới vào Database     |
-| 5    | Thành công                                              | Trả về thông báo cập nhật thành công                           |
-| 6    | Thất bại                                                | Hiển thị lỗi tương ứng (Mật khẩu cũ không đúng, không khớp...) |
+| Bước | Hành động của Admin                                  | Phản hồi hệ thống                                               |
+| :--- | :--------------------------------------------------- | :-------------------------------------------------------------- |
+| 1    | Truy cập trang "Quản lý người dùng"                  | Hiển thị danh sách người dùng kèm trạng thái hiện tại           |
+| 2    | Tìm người dùng cần khóa và nhấn nút "Khóa tài khoản" | Hiển thị hộp thoại xác nhận yêu cầu khóa                        |
+| 3    | Xác nhận hành động khóa                              | Gửi request PUT đến API hệ thống để cập nhật IsActive           |
+| 4    | Backend xử lý yêu cầu                                | Tìm người dùng trong DB và cập nhật `IsActive = false`          |
+| 5    | Thành công                                           | Trả về thông báo thành công và cập nhật nhãn trạng thái trên UI |
 
 ---
 
@@ -37,20 +36,20 @@ sequenceDiagram
     participant Backend
     participant Database
 
-    Admin->>Frontend: Nhập thông tin đổi mật khẩu
-    Frontend->>Backend: PUT /api/admin/change-password (Payload + Token)
+    Admin->>Frontend: Nhấn nút "Khóa tài khoản"
+    Frontend->>Backend: PUT /api/admin/users/{id}/status (IsActive = false)
 
-    Backend->>Backend: Xác thực Admin Token & UserId
-    Backend->>Database: Lấy PasswordHash của Admin
+    Backend->>Backend: Xác thực quyền Admin (Role == Admin)
+    Backend->>Database: Tìm User theo Id
 
-    alt Xác thực thất bại (Mật khẩu cũ sai)
-        Backend-->>Frontend: 400 Bad Request
-    else Xác thực thành công
-        Backend->>Backend: Hash mật khẩu mới (BCrypt)
-        Backend->>Database: Cập nhật PasswordHash mới
-        Database-->>Backend: Thành công
-        Backend-->>Frontend: 200 OK (Đã cập nhật mật khẩu)
-        Frontend-->>Admin: Hiển thị thông báo thành công
+    alt User không tồn tại
+        Database-->>Backend: null
+        Backend-->>Frontend: 404 Not Found
+    else User tồn tại
+        Backend->>Database: Cập nhật IsActive = false
+        Database-->>Backend: Lưu thay đổi thành công
+        Backend-->>Frontend: 200 OK (Đã khóa tài khoản)
+        Frontend-->>Admin: Hiển thị thông báo "Tài khoản đã bị vô hiệu hóa"
     end
 ```
 
@@ -60,62 +59,63 @@ sequenceDiagram
 
 #### 4.1. Dữ liệu đầu vào
 
-- `OldPassword`: Mật khẩu hiện tại để xác minh quyền sở hữu.
-- `NewPassword`: Mật khẩu mới đáp ứng tiêu chuẩn an toàn.
-- `ConfirmNewPassword`: Phải trùng khớp hoàn toàn với `NewPassword`.
+- `userId`: Mã định danh (Guid) của người dùng cần khóa.
+- `Admin Token`: JWT Token chứa Claim Role là `Admin`.
 
 #### 4.2. Logic xử lý Backend
 
-- **Phân quyền:** Chỉ người dùng có Role `Admin` mới được phép thao tác.
-- **Kiểm tra mật khẩu:** Sử dụng `BCrypt.Verify` để so sánh `OldPassword` với mã băm trong Database.
-- **Ràng buộc bảo mật:**
-  - Mật khẩu mới không được trùng với mật khẩu cũ.
-  - Độ dài tối thiểu 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt.
-- **Lưu trữ:** Mật khẩu mới phải được băm (hash) trước khi lưu để đảm bảo an toàn dữ liệu.
+- **Kiểm tra quyền hạn:** Chỉ tài khoản có `Role == Admin` mới được phép gọi API này.
+- **Cập nhật dữ liệu:**
+  - Tìm thực thể `AppUser` trong database.
+  - Gán giá trị `IsActive = false`.
+  - Lưu thay đổi (`SaveChangesAsync`).
+- **Ràng buộc:** Admin không được phép tự khóa chính tài khoản của mình (để tránh mất quyền quản trị hệ thống).
 
 #### 4.3. Dữ liệu đầu ra (Response)
 
-- **Thành công:** Trả về mã 200 OK và thông báo xác nhận.
-- **Thất bại:** Trả về lỗi 400 hoặc 401 kèm mô tả lý do cụ thể.
+- **Thành công:** Trả về trạng thái 200 kèm thông báo xác nhận.
+- **Thất bại:** Trả về lỗi 403 (Forbidden) nếu không phải Admin hoặc 404 nếu sai ID người dùng.
 
 ---
 
 ### 5. Ràng buộc kỹ thuật & Bảo mật
 
-- **Xác thực:** API được bảo vệ bởi middleware `[Authorize(Roles = "Admin")]`.
-- **An toàn dữ liệu:** Mật khẩu truyền đi từ Frontend phải được bảo vệ qua giao thức HTTPS.
-- **Idempotency:** Nếu người dùng nhấn nút lưu nhiều lần, hệ thống chỉ xử lý yêu cầu đầu tiên thành công.
+- **Middleware:** API phải được bảo vệ bởi thuộc tính `[Authorize(Roles = "Admin")]`.
+- **Tính nhất quán:** Ngay sau khi `IsActive` chuyển sang `false`, nếu hệ thống có sử dụng cơ chế kiểm tra Token định kỳ hoặc Refresh Token, các phiên làm việc hiện tại của người dùng bị khóa phải bị hủy bỏ (Logout ngay lập tức).
+- **Kiểm tra đăng nhập:** Tài liệu `SRS_LOGIN.md` phải bổ sung bước kiểm tra trường `IsActive` trước khi cấp phát JWT Token.
 
 ---
 
 ### 6. Trường hợp ngoại lệ (Edge Cases)
 
-| Tình huống              | Cách xử lý                                             |
-| :---------------------- | :----------------------------------------------------- |
-| Nhập mật khẩu cũ sai    | Trả về thông báo: "Mật khẩu hiện tại không chính xác". |
-| Mật khẩu mới không khớp | Frontend cảnh báo ngay lập tức trước khi gửi request.  |
-| Phiên đăng nhập hết hạn | Yêu cầu Admin đăng nhập lại để tiếp tục thao tác.      |
+| Tình huống                              | Cách xử lý                                                                                    |
+| :-------------------------------------- | :-------------------------------------------------------------------------------------------- |
+| Admin cố tình khóa tài khoản chính mình | Backend trả về lỗi 400: "Bạn không thể tự khóa tài khoản của chính mình."                     |
+| Tài khoản đã ở trạng thái khóa từ trước | Backend vẫn thực hiện gán và trả về thành công (Idempotent) hoặc thông báo tài khoản đã khóa. |
+| Khóa tài khoản của Admin khác           | Tùy vào chính sách, hệ thống có thể cho phép SuperAdmin khóa Admin thường hoặc cấm hoàn toàn. |
 
 ---
 
 ### 7. Giao diện tích hợp (UI/UX)
 
-- **Vị trí:** Tích hợp trong trang cá nhân hoặc Dashboard dành riêng cho Admin.
-- **Phản hồi:** Hiển thị thông báo (Toast/Alert) rõ ràng sau khi thao tác.
-- **Input:** Sử dụng các trường nhập liệu có nút ẩn/hiện mật khẩu để hỗ trợ người dùng.
+- **Nhãn trạng thái:**
+  - Tài khoản đang hoạt động: Hiển thị nhãn **Active** (Màu xanh).
+  - Tài khoản bị khóa: Hiển thị nhãn **Locked/Inactive** (Màu đỏ).
+- **Thao tác:** Nút "Khóa" nên được thay thế bằng nút "Mở khóa" nếu tài khoản đã ở trạng thái `IsActive = false`.
+- **Xác nhận:** Luôn yêu cầu Admin xác nhận qua Modal trước khi thực hiện thay đổi trạng thái người dùng.
 
 ---
 
 ### 8. Điều kiện tiền đề & Hậu điều kiện
 
-- **Tiền đề:** Admin đã đăng nhập thành công vào hệ thống quản trị.
+- **Tiền đề:**
+  - Admin đã đăng nhập và có quyền quản trị.
+  - Tài khoản người dùng mục tiêu tồn tại trong hệ thống.
 - **Hậu điều kiện:**
-  - `PasswordHash` của Admin trong bảng `AppUsers` được cập nhật.
-  - Admin có thể sử dụng mật khẩu mới cho lần đăng nhập tiếp theo.
+  - Trường `IsActive` của người dùng trong bảng `AppUsers` bằng `false`.
+  - Người dùng không thể sử dụng chức năng Đăng nhập.
 
 ```
-
-
 
 
 ```
