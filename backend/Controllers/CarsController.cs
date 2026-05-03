@@ -228,10 +228,7 @@ public class CarsController : ControllerBase
             Images = car.Images.Select(i => new
             {
                 i.Id,
-                
-                Url = string.IsNullOrWhiteSpace(i.Url)
-                    ? null
-                    : (i.Url.StartsWith("http") ? i.Url : $"{baseUrl}{i.Url}"),
+                Url = string.IsNullOrWhiteSpace(i.Url) ? null : (i.Url.StartsWith("http") ? i.Url : $"{baseUrl}{i.Url}"),
                 i.Type,
                 i.SortOrder
             })
