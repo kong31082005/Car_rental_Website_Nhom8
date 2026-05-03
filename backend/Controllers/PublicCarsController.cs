@@ -70,9 +70,8 @@ public class PublicCarsController : ControllerBase
             c.Fuel,
             c.Address,
             c.PricePerDay,
-            Thumbnail = string.IsNullOrWhiteSpace(c.Thumbnail)
-                ? null
-                : $"{baseUrl}{c.Thumbnail}"
+            Thumbnail = string.IsNullOrWhiteSpace(c.Thumbnail) ? null
+            : (c.Thumbnail.StartsWith("http") ? c.Thumbnail : $"{baseUrl}{c.Thumbnail}")
         });
 
         return Ok(result);
@@ -177,7 +176,10 @@ public class PublicCarsController : ControllerBase
             Images = car.Images.Select(i => new
             {
                 i.Id,
-                Url = string.IsNullOrWhiteSpace(i.Url) ? null : $"{baseUrl}{i.Url}",
+                Url = string.IsNullOrWhiteSpace(i.Url)
+                ? null
+                : (i.Url.StartsWith("http") ? i.Url : $"{baseUrl}{i.Url}"),
+
                 i.Type,
                 i.SortOrder
             })
