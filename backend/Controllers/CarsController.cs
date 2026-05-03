@@ -78,7 +78,7 @@ public class CarsController : ControllerBase
             c.CreatedAt,
             Thumbnail = string.IsNullOrWhiteSpace(c.Thumbnail)
                 ? null
-                : $"{c.Thumbnail}"
+                : (c.Thumbnail.StartsWith("http") ? c.Thumbnail : $"{baseUrl}{c.Thumbnail}")
         });
 
         return Ok(result);
