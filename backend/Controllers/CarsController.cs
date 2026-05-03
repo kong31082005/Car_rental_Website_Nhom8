@@ -169,7 +169,7 @@ public class CarsController : ControllerBase
     public async Task<IActionResult> GetCarDetail(Guid id)
     {
         var userId = GetUserId();
-        var baseUrl = $"{Request.Scheme}://{Request.Host}";
+        var baseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}/"; 
 
         var car = await _db.Cars
             .AsNoTracking()
@@ -228,7 +228,10 @@ public class CarsController : ControllerBase
             Images = car.Images.Select(i => new
             {
                 i.Id,
-                Url = string.IsNullOrWhiteSpace(i.Url) ? null : $"{baseUrl}{i.Url}",
+                
+                Url = string.IsNullOrWhiteSpace(i.Url)
+                    ? null
+                    : (i.Url.StartsWith("http") ? i.Url : $"{baseUrl}{i.Url}"),
                 i.Type,
                 i.SortOrder
             })
