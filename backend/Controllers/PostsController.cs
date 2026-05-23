@@ -51,7 +51,7 @@ public class PostsController : ControllerBase
 
         var userId = TryGetUserId();
         var isOwner = IsOwnerRole();
-        var baseUrl = $"{Request.Scheme}://{Request.Host}";
+       
 
         var posts = await _db.Posts
             .AsNoTracking()
@@ -81,7 +81,7 @@ public class PostsController : ControllerBase
             p.UserAvatar,
             p.CreatedAt,
             p.Content,
-            ImageUrl = string.IsNullOrWhiteSpace(p.ImageUrl) ? null : $"{baseUrl}{p.ImageUrl}",
+            ImageUrl = string.IsNullOrWhiteSpace(p.ImageUrl) ? null : p.ImageUrl,
             p.LikedCount,
             p.CommentCount,
             p.IsLiked,
