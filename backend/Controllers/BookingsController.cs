@@ -110,8 +110,8 @@ BÊN THUÊ
                 OrderCode = orderCode,
                 Amount = (int)booking.TotalAmount,
                 Description = description,
-                ReturnUrl = "http://localhost:5173/bookings/" + booking.Id,
-                CancelUrl = "http://localhost:5173/bookings/" + booking.Id
+                ReturnUrl = "https://car-rentalweb.vercel.app/my-bookings",
+                CancelUrl = "https://car-rentalweb.vercel.app/my-bookings"
             };
 
             var result = await _payOS.PaymentRequests.CreateAsync(paymentRequest);
