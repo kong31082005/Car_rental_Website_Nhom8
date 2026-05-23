@@ -65,7 +65,11 @@ public class FavoritesController : ControllerBase
             c.Fuel,
             c.Address,
             c.PricePerDay,
-            Thumbnail = string.IsNullOrWhiteSpace(c.Thumbnail) ? null : $"{baseUrl}{c.Thumbnail}",
+            Thumbnail = string.IsNullOrWhiteSpace(c.Thumbnail)
+                ? null
+                : (c.Thumbnail.Trim().StartsWith("http", StringComparison.OrdinalIgnoreCase)
+                    ? c.Thumbnail.Trim()
+                    : $"{baseUrl}{c.Thumbnail.Trim()}"),
             IsFavorite = true
         });
 
