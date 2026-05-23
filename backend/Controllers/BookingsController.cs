@@ -319,7 +319,7 @@ BÊN THUÊ
     {
         var customerId = GetUserId();
         var baseUrl = $"{Request.Scheme}://{Request.Host}";
-
+            
         var data = await _db.Bookings
             .AsNoTracking()
             .Where(x => x.CustomerId == customerId)
@@ -369,10 +369,10 @@ BÊN THUÊ
             OwnerName = x.OwnerNameSnapshot,
 
             Thumbnail = string.IsNullOrWhiteSpace(x.Thumbnail)
-                ? null
-                : (x.Thumbnail.StartsWith("http")
-                    ? x.Thumbnail
-                    : $"{baseUrl}{x.Thumbnail}"),
+                        ? null
+                        : (x.Thumbnail.Trim().StartsWith("http", StringComparison.OrdinalIgnoreCase)
+                            ? x.Thumbnail.Trim()
+                            : $"{baseUrl}{x.Thumbnail.Trim()}"),
 
             ContractPdfUrl = string.IsNullOrWhiteSpace(x.ContractPdfUrl)
                 ? null
@@ -432,8 +432,10 @@ BÊN THUÊ
             x.CreatedAt,
             x.Note,
             Thumbnail = string.IsNullOrWhiteSpace(x.Thumbnail)
-                ? null
-                : $"{baseUrl}{x.Thumbnail}"
+                    ? null
+                    : (x.Thumbnail.Trim().StartsWith("http", StringComparison.OrdinalIgnoreCase)
+                    ? x.Thumbnail.Trim()
+                    : $"{baseUrl}{x.Thumbnail.Trim()}"),
         });
 
         return Ok(result);
