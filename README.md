@@ -14,6 +14,16 @@ Dự án hỗ trợ các nghiệp vụ chính như: tìm kiếm xe, đặt thuê
 | 2 | Vũ Trường Giang | 23810310117 | Thành viên |
 
 ---
+## 🔗 Thông tin dự án
+* **Link Website Online:** [https://car-rentalweb.vercel.app/home]
+* 
+---
+
+## 🔐 Tài khoản Demo
+* **Tài khoản Admin:** `vutruonggiang0811@gmail.com ` / **Mật khẩu:** `Giang0811`
+* **Khách hàng:** `vutruonggiang1108@gmail.com ` / **Mật khẩu:** `Giang0811` - Có thể đăng ký tài khoản mới trực tiếp trên website.
+
+---
 
 ## 📋 Mục lục
 
