@@ -16,6 +16,8 @@ Dự án hỗ trợ các nghiệp vụ chính như: tìm kiếm xe, đặt thuê
 ---
 ## 🔗 Thông tin dự án
 * **Link Website Online:** [https://car-rentalweb.vercel.app/home]
+* **Link Video Demo:** [Xem Video Thuyết Minh Tại Đây][https://youtu.be/9MqF3SnLvXc]
+
 ---
 
 ## 🔐 Tài khoản Demo
